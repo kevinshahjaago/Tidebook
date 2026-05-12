@@ -188,10 +188,13 @@ export default function AdminBookingDetail() {
                   <dd>{booking.schoolDistrict}</dd>
                 </>
               )}
-              {booking.organizationAddress && (
+              {booking.addressStreet1 && (
                 <>
                   <dt className="text-gray-500">Address</dt>
-                  <dd>{booking.organizationAddress}</dd>
+                  <dd>
+                    {booking.addressStreet1}{booking.addressStreet2 ? `, ${booking.addressStreet2}` : ""}<br />
+                    {[booking.addressCity, booking.addressState].filter(Boolean).join(", ")}{booking.addressZip ? ` ${booking.addressZip}` : ""}
+                  </dd>
                 </>
               )}
               <dt className="text-gray-500">Contact Name</dt>

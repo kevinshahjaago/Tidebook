@@ -31,9 +31,13 @@ export const createBookingSchema = z.object({
     .max(200, "School district name is too long")
     .optional()
     .or(z.literal("")),
-  organizationAddress: z
+  addressStreet1: z.string().max(200, "Street address is too long").optional().or(z.literal("")),
+  addressStreet2: z.string().max(200, "Address line 2 is too long").optional().or(z.literal("")),
+  addressCity: z.string().max(100, "City name is too long").optional().or(z.literal("")),
+  addressState: z.string().length(2, "Use a 2-letter state code").default("WA"),
+  addressZip: z
     .string()
-    .max(500, "Address is too long")
+    .regex(/^(\d{5}(-\d{4})?)?$/, "Please enter a valid ZIP code")
     .optional()
     .or(z.literal("")),
   contactName: z

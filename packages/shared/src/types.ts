@@ -20,7 +20,11 @@ export interface Booking {
   groupType: GroupType;
   organizationName: string;
   schoolDistrict: string | null;
-  organizationAddress: string | null;
+  addressStreet1: string | null;
+  addressStreet2: string | null;
+  addressCity: string | null;
+  addressState: string;
+  addressZip: string | null;
   contactName: string;
   contactEmail: string;
   contactPhone: string;

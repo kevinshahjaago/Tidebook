@@ -78,6 +78,7 @@ export default function BookingFlow() {
       adultCount: undefined as any,
       gradeLevels: [],
       accessibilityNeeds: "None",
+      addressState: "WA",
     },
   });
 
@@ -642,9 +643,15 @@ export default function BookingFlow() {
                     <input className="input" {...form.register("schoolDistrict")} />
                     <p className="text-xs text-gray-500 mt-1">{s("booking_school_district_hint", "Enter N/A for private schools, home schools, & colleges/universities.")}</p>
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <label className="label">School / Organization Address</label>
-                    <input className="input" placeholder="123 Main St, Seattle, WA 98101" {...form.register("organizationAddress")} />
+                    <input className="input" placeholder="Street address" {...form.register("addressStreet1")} />
+                    <input className="input" placeholder="Apt, Suite, Bldg (optional)" {...form.register("addressStreet2")} />
+                    <div className="grid grid-cols-2 sm:grid-cols-[1fr_80px_100px] gap-2">
+                      <input className="input col-span-2 sm:col-span-1" placeholder="City" {...form.register("addressCity")} />
+                      <input className="input uppercase" maxLength={2} placeholder="State" {...form.register("addressState")} />
+                      <input className="input" placeholder="ZIP" {...form.register("addressZip")} />
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -945,10 +952,13 @@ export default function BookingFlow() {
                       <span className="font-medium">{watch("schoolDistrict")}</span>
                     </div>
                   )}
-                  {watch("organizationAddress") && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Address</span>
-                      <span className="font-medium text-right">{watch("organizationAddress")}</span>
+                  {watch("addressStreet1") && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600 shrink-0">Address</span>
+                      <span className="font-medium text-right">
+                        {watch("addressStreet1")}{watch("addressStreet2") ? `, ${watch("addressStreet2")}` : ""}<br />
+                        {[watch("addressCity"), watch("addressState")].filter(Boolean).join(", ")}{watch("addressZip") ? ` ${watch("addressZip")}` : ""}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between">

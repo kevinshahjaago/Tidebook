@@ -115,11 +115,15 @@ export async function scheduleEmailTriggers(
     ? `${config.WEB_BASE_URL}/reschedule?token=${rescheduleToken}`
     : "";
 
-  const [cocSetting, paymentMethodSetting] = await Promise.all([
+  const [cocSetting, paymentMethodSetting, paymentLinkUrlSetting, paymentLinkEmailSetting] = await Promise.all([
     prisma.appSetting.findUnique({ where: { key: "code_of_conduct_url" } }),
     prisma.appSetting.findUnique({ where: { key: "payment_method_options" } }),
+    prisma.appSetting.findUnique({ where: { key: "booking_payment_link_url" } }),
+    prisma.appSetting.findUnique({ where: { key: "booking_payment_link_email" } }),
   ]);
   const cocLink = cocSetting?.value ?? `${config.WEB_BASE_URL}/code-of-conduct`;
+  const paymentLinkUrl = paymentLinkUrlSetting?.value ?? "";
+  const paymentLinkEmail = paymentLinkEmailSetting?.value ?? "";
 
   let paymentInstructions = "";
   try {
@@ -145,6 +149,8 @@ export async function scheduleEmailTriggers(
     reimbursementLink: `${config.WEB_BASE_URL}/reimbursement?booking=${booking.id}`,
     cocLink,
     paymentInstructions,
+    paymentLinkUrl,
+    paymentLinkEmail,
   };
 
   if (status === BookingStatus.CONFIRMED) {
@@ -153,6 +159,11 @@ export async function scheduleEmailTriggers(
       ? EmailTriggerType.BOOKING_CONFIRMED_BY_REGISTRAR
       : EmailTriggerType.BOOKING_CONFIRMED_STANDARD;
     await sendEmailForBooking(bookingId, trigger, contactEmail, variables);
+
+    // Send separate payment link email for online payment method
+    if (booking.paymentMethod === "ONLINE_PAYMENT_LINK") {
+      await sendEmailForBooking(bookingId, EmailTriggerType.ONLINE_PAYMENT_LINK_INFO, contactEmail, variables);
+    }
   } else if (status === BookingStatus.PENDING) {
     await sendEmailForBooking(
       bookingId,
@@ -160,6 +171,10 @@ export async function scheduleEmailTriggers(
       contactEmail,
       variables
     );
+    // Also send payment link email immediately for pending bookings with online payment
+    if (booking.paymentMethod === "ONLINE_PAYMENT_LINK") {
+      await sendEmailForBooking(bookingId, EmailTriggerType.ONLINE_PAYMENT_LINK_INFO, contactEmail, variables);
+    }
   } else if (status === BookingStatus.DECLINED) {
     await sendEmailForBooking(
       bookingId,

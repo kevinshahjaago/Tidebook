@@ -16,9 +16,12 @@ export enum GroupType {
 }
 
 export enum PaymentMethod {
-  PAID = "PAID",
+  PAID = "PAID",            // legacy — kept for backward compatibility
   SCHOLARSHIP = "SCHOLARSHIP",
   INVOICE = "INVOICE",
+  CASH_OR_CHECK = "CASH_OR_CHECK",
+  CREDIT_DEBIT = "CREDIT_DEBIT",
+  ONLINE_PAYMENT_LINK = "ONLINE_PAYMENT_LINK",
 }
 
 export enum UserRole {
@@ -54,6 +57,7 @@ export enum EmailTriggerType {
   SCHOLARSHIP_INCOMPLETE_10_DAYS = "SCHOLARSHIP_INCOMPLETE_10_DAYS",
   SCHOLARSHIP_INCOMPLETE_FOLLOWUP = "SCHOLARSHIP_INCOMPLETE_FOLLOWUP",
   BUS_REIMBURSEMENT_INFO = "BUS_REIMBURSEMENT_INFO",
+  ONLINE_PAYMENT_LINK_INFO = "ONLINE_PAYMENT_LINK_INFO",
 }
 
 export enum EmailStatus {

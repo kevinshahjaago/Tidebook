@@ -1,0 +1,7 @@
+-- Add new PaymentMethod enum values
+ALTER TYPE "PaymentMethod" ADD VALUE IF NOT EXISTS 'CASH_OR_CHECK';
+ALTER TYPE "PaymentMethod" ADD VALUE IF NOT EXISTS 'CREDIT_DEBIT';
+ALTER TYPE "PaymentMethod" ADD VALUE IF NOT EXISTS 'ONLINE_PAYMENT_LINK';
+
+-- Add new EmailTriggerType enum value
+ALTER TYPE "EmailTriggerType" ADD VALUE IF NOT EXISTS 'ONLINE_PAYMENT_LINK_INFO';

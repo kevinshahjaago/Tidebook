@@ -260,6 +260,18 @@ async function main() {
 <p>Seattle Aquarium Education Team</p>`,
       bodyText: `Hi {{contactName}},\n\nYou may be eligible for bus reimbursement (up to $500/bus). Apply at: {{reimbursementLink}}\n\nSeattle Aquarium Education Team`,
     },
+    {
+      triggerType: EmailTriggerType.ONLINE_PAYMENT_LINK_INFO,
+      subject: "Payment Link for Your Seattle Aquarium Visit",
+      bodyHtml: `<p>Hi {{contactName}},</p>
+<p>Thank you for registering your group visit to the Seattle Aquarium on <strong>{{visitDate}}</strong>.</p>
+<p>Please use the link below to complete your payment:</p>
+<p><a href="{{paymentLinkUrl}}">{{paymentLinkUrl}}</a></p>
+<p>If you have questions about payment, please contact us at <a href="mailto:{{paymentLinkEmail}}">{{paymentLinkEmail}}</a>.</p>
+<p>Payment is due no later than the day of your visit.</p>
+<p>Seattle Aquarium Education Team</p>`,
+      bodyText: `Hi {{contactName}},\n\nThank you for registering your group visit on {{visitDate}}.\n\nPlease complete your payment at: {{paymentLinkUrl}}\n\nQuestions? Contact us at: {{paymentLinkEmail}}\n\nPayment is due no later than the day of your visit.\n\nSeattle Aquarium Education Team`,
+    },
   ];
 
   for (const template of templates) {
@@ -303,30 +315,55 @@ async function main() {
       { value: "CORPORATE",  label: "Corporate Group",     description: "Businesses, teams, and professional groups" },
       { value: "ADHOC",      label: "Ad-Hoc Group",        description: "Clubs, scouts, and other community organizations" },
     ]) },
-    // ── Payment Methods (JSON array — configurable label, description, email instructions) ─
+    // ── Payment Methods (JSON array — configurable label, description, subtext, email instructions) ─
     { key: "payment_method_options", value: JSON.stringify([
       {
-        value: "PAID",
-        label: "Pay by credit card or check",
-        description: "Payment is due on the day of your visit.",
-        emailInstructions: "Payment is due at the time of your visit. We accept major credit cards and checks made payable to 'Seattle Aquarium'. A team member will assist you at check-in.",
+        value: "CASH_OR_CHECK",
+        label: "Cash or Check (day of visit)",
+        description: "We accept cash and checks made payable to 'Seattle Aquarium'.",
+        subtext: "Please bring exact payment on the day of your visit. A staff member will collect payment at check-in.",
+        emailInstructions: "Payment is due at check-in on the day of your visit. We accept cash and checks made payable to 'Seattle Aquarium'.",
         isVisible: true,
       },
       {
-        value: "SCHOLARSHIP",
-        label: "Apply for a scholarship",
-        description: "For Title I schools and qualifying organizations.",
-        emailInstructions: "You have applied for scholarship funding for your visit. Our team will review your application and be in touch within 5 business days with next steps.",
+        value: "CREDIT_DEBIT",
+        label: "Credit or Debit Card (via call or in-person)",
+        description: "Call us to pay by card, or pay in person at the ticket window.",
+        subtext: "A team member will contact you to process payment, or you may call our education office directly.",
+        emailInstructions: "To pay by credit or debit card, please call our education office or stop by the ticket window on arrival.",
+        isVisible: true,
+      },
+      {
+        value: "ONLINE_PAYMENT_LINK",
+        label: "Online Payment Link",
+        description: "We will send you a secure payment link by email.",
+        subtext: "After your booking is submitted, you will receive a separate email with a secure link to complete payment online.",
+        emailInstructions: "You will receive a separate email with your secure online payment link shortly.",
         isVisible: true,
       },
       {
         value: "INVOICE",
-        label: "Invoice / Purchase Order",
+        label: "Purchase Order / Invoice",
         description: "For organizations that pay by purchase order or invoice.",
-        emailInstructions: "An invoice will be sent to the email address on your registration. Please submit payment within 30 days of receipt. For questions about invoicing, reply to this email.",
+        subtext: "Please include your booking reference number on your purchase order. An invoice will be sent to the email address on your registration.",
+        emailInstructions: "An invoice will be sent to the email address on your registration. Please submit payment within 30 days of receipt.",
+        isVisible: true,
+      },
+      {
+        value: "SCHOLARSHIP",
+        label: "Applying for a Scholarship",
+        description: "For Title I schools and qualifying organizations.",
+        subtext: "Scholarship applications are reviewed within 5 business days. You will be contacted by our education team.",
+        emailInstructions: "You have applied for scholarship funding. Our team will review your application and be in touch within 5 business days.",
         isVisible: true,
       },
     ]) },
+    // ── Payment Subtext & Online Payment Link ──────────────────────────────────
+    { key: "booking_payment_subtext", value: "Payment is due no later than the day of your visit. Please note that passes, discount tickets, coupons, **Seattle Aquarium memberships are not valid for school group admission fees.**" },
+    { key: "booking_payment_link_url", value: "" },
+    { key: "booking_payment_link_email", value: "registration@seattleaquarium.org" },
+    // ── Contact Info Footer ────────────────────────────────────────────────────
+    { key: "booking_contact_footer", value: "For questions email [registration@seattleaquarium.org](mailto:registration@seattleaquarium.org). Due to high volume it may take us at least a week to respond." },
     // ── Booking Form Copy ──────────────────────────────────────────────────────
     { key: "booking_form_subtitle", value: "School & Public Programs — Group Visit Registration" },
     { key: "booking_connections_notice", value: "Connections Partners (nonprofits, YMCAs, community centers) have a dedicated portal —" },

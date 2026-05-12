@@ -16,6 +16,7 @@ import {
 import { AlertCircle, Fish, Clock } from "lucide-react";
 import { AxiosError } from "axios";
 import { format, parseISO } from "date-fns";
+import ReactMarkdown from "react-markdown";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 type GroupTypeOption = { value: string; label: string; description: string };
@@ -46,7 +47,7 @@ const GRADE_OPTIONS = [
 // College/University groups have no chaperone ratio requirement
 const NO_RATIO_GRADES = new Set(["College/University"]);
 
-type PaymentMethodOption = { value: string; label: string; description: string; emailInstructions: string; isVisible: boolean };
+type PaymentMethodOption = { value: string; label: string; description: string; subtext?: string; emailInstructions: string; isVisible: boolean };
 
 function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 10);
@@ -206,9 +207,11 @@ export default function BookingFlow() {
       return all.filter((o) => o.isVisible !== false);
     } catch {
       return [
-        { value: "PAID",       label: "Pay by credit card or check",   description: "Payment is due on the day of your visit.",                  emailInstructions: "", isVisible: true },
-        { value: "SCHOLARSHIP", label: "Apply for a scholarship",        description: "For Title I schools and qualifying organizations.",         emailInstructions: "", isVisible: true },
-        { value: "INVOICE",    label: "Invoice / Purchase Order",        description: "For organizations that pay by purchase order or invoice.", emailInstructions: "", isVisible: true },
+        { value: "CASH_OR_CHECK",       label: "Cash or Check (day of visit)",              description: "We accept cash and checks payable to 'Seattle Aquarium'.", subtext: "", emailInstructions: "", isVisible: true },
+        { value: "CREDIT_DEBIT",        label: "Credit or Debit Card (via call/in-person)", description: "Call us to pay by card, or pay at the ticket window.",        subtext: "", emailInstructions: "", isVisible: true },
+        { value: "ONLINE_PAYMENT_LINK", label: "Online Payment Link",                       description: "We will send you a secure payment link by email.",            subtext: "", emailInstructions: "", isVisible: true },
+        { value: "INVOICE",             label: "Purchase Order / Invoice",                  description: "For organizations that pay by purchase order or invoice.",    subtext: "", emailInstructions: "", isVisible: true },
+        { value: "SCHOLARSHIP",         label: "Applying for a Scholarship",                description: "For Title I schools and qualifying organizations.",           subtext: "", emailInstructions: "", isVisible: true },
       ];
     }
   })();
@@ -594,7 +597,13 @@ export default function BookingFlow() {
                   </div>
                 )}
 
-                <div className="flex justify-between mt-6">
+                {s("booking_contact_footer", "") && (
+                  <div className="mt-6 text-xs text-gray-400 text-center prose prose-xs max-w-none [&_a]:text-aqua-600">
+                    <ReactMarkdown>{s("booking_contact_footer", "")}</ReactMarkdown>
+                  </div>
+                )}
+
+                <div className="flex justify-between mt-4">
                   <button onClick={() => setStep(1)} className="btn-secondary">Back</button>
                   <button
                     onClick={async () => {
@@ -756,69 +765,6 @@ export default function BookingFlow() {
                     </div>
                   )}
                   <div>
-                    <label className="label">Billing Arrangement (required)</label>
-                    <div className="space-y-2 mt-1">
-                      {paymentMethodOptions.map((opt) => (
-                        <label
-                          key={opt.value}
-                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                            paymentMethod === opt.value
-                              ? "border-aqua-700 bg-aqua-50"
-                              : "border-gray-200 hover:border-aqua-300"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            value={opt.value}
-                            className="mt-0.5 text-aqua-700"
-                            {...form.register("paymentMethod")}
-                          />
-                          <div>
-                            <span className="font-medium text-sm">{opt.label}</span>
-                            {opt.description && <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>}
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                    {errors.paymentMethod && <p className="error-message mt-1">{errors.paymentMethod.message}</p>}
-                  </div>
-
-                  {/* Scholarship sub-flow */}
-                  {paymentMethod === PaymentMethod.SCHOLARSHIP && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
-                      <h3 className="font-medium text-amber-900">Scholarship Information</h3>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" className="rounded" {...form.register("scholarship.titleOneStatus")} />
-                        My school qualifies as Title I
-                      </label>
-                      <div>
-                        <label className="label">Total School Enrollment (required)</label>
-                        <input
-                          type="number"
-                          className={`input ${errors.scholarship?.enrollmentCount ? "input-error" : ""}`}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          {...form.register("scholarship.enrollmentCount", { valueAsNumber: true })}
-                        />
-                        {errors.scholarship?.enrollmentCount && (
-                          <p className="error-message">{errors.scholarship.enrollmentCount.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="label">Additional qualifying information (required)</label>
-                        <textarea
-                          rows={3}
-                          className={`input ${errors.scholarship?.qualifyingInfo ? "input-error" : ""}`}
-                          placeholder="Describe your school's qualifying circumstances"
-                          {...form.register("scholarship.qualifyingInfo")}
-                        />
-                        {errors.scholarship?.qualifyingInfo && (
-                          <p className="error-message">{errors.scholarship.qualifyingInfo.message}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
                     <label className="label">Accessibility & Accommodation Needs</label>
                     <p className="text-xs text-gray-500 mb-2">Select all that apply for your group. We'll make sure everything is ready for your visit.</p>
                     <div className="space-y-1.5">
@@ -869,6 +815,94 @@ export default function BookingFlow() {
                         {...form.register("specialRequests")}
                       />
                       {errors.specialRequests && <p className="error-message">{errors.specialRequests.message}</p>}
+                    </div>
+                  )}
+
+                  {/* Payment Method — last field */}
+                  <div>
+                    <label className="label">Payment Method (required)</label>
+                    <div className="space-y-2 mt-1">
+                      {paymentMethodOptions.map((opt) => {
+                        const isSelected = paymentMethod === opt.value;
+                        return (
+                          <div key={opt.value}>
+                            <label
+                              className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                                isSelected
+                                  ? "border-aqua-700 bg-aqua-50"
+                                  : "border-gray-200 hover:border-aqua-300"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                value={opt.value}
+                                className="mt-0.5 text-aqua-700"
+                                {...form.register("paymentMethod")}
+                              />
+                              <div>
+                                <span className="font-medium text-sm">{opt.label}</span>
+                                {opt.description && <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>}
+                              </div>
+                            </label>
+                            {/* Per-method subtext shown when selected */}
+                            {isSelected && opt.subtext && (
+                              <div className="ml-3 mt-1 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 prose prose-xs max-w-none">
+                                <ReactMarkdown>{opt.subtext}</ReactMarkdown>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {errors.paymentMethod && <p className="error-message mt-1">{errors.paymentMethod.message}</p>}
+
+                    {/* Global payment subtext */}
+                    {s("booking_payment_subtext", "") && (
+                      <div className="mt-3 text-xs text-gray-500 prose prose-xs max-w-none [&_strong]:text-gray-700 [&_a]:text-aqua-700">
+                        <ReactMarkdown>{s("booking_payment_subtext", "")}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Scholarship sub-flow when scholarship is selected */}
+                  {paymentMethod === PaymentMethod.SCHOLARSHIP && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                      <h3 className="font-medium text-amber-900">Scholarship Information</h3>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" className="rounded" {...form.register("scholarship.titleOneStatus")} />
+                        My school qualifies as Title I
+                      </label>
+                      <div>
+                        <label className="label">Total School Enrollment (required)</label>
+                        <input
+                          type="number"
+                          className={`input ${errors.scholarship?.enrollmentCount ? "input-error" : ""}`}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          {...form.register("scholarship.enrollmentCount", { valueAsNumber: true })}
+                        />
+                        {errors.scholarship?.enrollmentCount && (
+                          <p className="error-message">{errors.scholarship.enrollmentCount.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="label">Additional qualifying information (required)</label>
+                        <textarea
+                          rows={3}
+                          className={`input ${errors.scholarship?.qualifyingInfo ? "input-error" : ""}`}
+                          placeholder="Describe your school's qualifying circumstances"
+                          {...form.register("scholarship.qualifyingInfo")}
+                        />
+                        {errors.scholarship?.qualifyingInfo && (
+                          <p className="error-message">{errors.scholarship.qualifyingInfo.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contact footer */}
+                  {s("booking_contact_footer", "") && (
+                    <div className="text-xs text-gray-400 text-center pt-2 prose prose-xs max-w-none [&_a]:text-aqua-600">
+                      <ReactMarkdown>{s("booking_contact_footer", "")}</ReactMarkdown>
                     </div>
                   )}
 

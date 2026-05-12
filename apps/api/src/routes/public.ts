@@ -42,6 +42,10 @@ const PUBLIC_SETTINGS = [
   "slot_hold_minutes",
   "booking_slot_hold_banner",
   "booking_school_district_hint",
+  "booking_payment_subtext",
+  "booking_payment_link_url",
+  "booking_payment_link_email",
+  "booking_contact_footer",
 ] as const;
 
 publicRouter.get("/settings", publicRateLimit, async (_req: Request, res: Response, next: NextFunction) => {

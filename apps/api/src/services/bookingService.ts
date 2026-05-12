@@ -19,17 +19,14 @@ import { scheduleEmailTriggers } from "./emailService";
 import { pushToAcme } from "../adapters/acmeAdapter";
 import { logger } from "../logger";
 
-function encryptBookingPii(input: {
-  organizationName: string;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-}) {
+function encryptBookingPii(input: CreateBookingInput) {
   return {
     organizationName: encrypt(input.organizationName),
     contactName: encrypt(input.contactName),
     contactEmail: encrypt(input.contactEmail),
     contactPhone: encrypt(input.contactPhone),
+    ...(input.dayOfContactName?.trim() ? { dayOfContactName: encrypt(input.dayOfContactName) } : {}),
+    ...(input.dayOfContactPhone?.trim() ? { dayOfContactPhone: encrypt(input.dayOfContactPhone) } : {}),
   };
 }
 
@@ -38,12 +35,16 @@ function decryptBookingPii(booking: {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  dayOfContactName?: string | null;
+  dayOfContactPhone?: string | null;
 }) {
   return {
     organizationName: decrypt(booking.organizationName),
     contactName: decrypt(booking.contactName),
     contactEmail: decrypt(booking.contactEmail),
     contactPhone: decrypt(booking.contactPhone),
+    ...(booking.dayOfContactName ? { dayOfContactName: decrypt(booking.dayOfContactName) } : {}),
+    ...(booking.dayOfContactPhone ? { dayOfContactPhone: decrypt(booking.dayOfContactPhone) } : {}),
   };
 }
 
@@ -52,6 +53,8 @@ export function decryptBooking<T extends {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  dayOfContactName?: string | null;
+  dayOfContactPhone?: string | null;
 }>(booking: T): T {
   return {
     ...booking,
@@ -153,6 +156,12 @@ export async function createBooking(
         status,
         groupType: input.groupType as unknown as GroupType,
         ...encrypted,
+        schoolDistrict: input.schoolDistrict?.trim() || null,
+        addressStreet1: input.addressStreet1?.trim() || null,
+        addressStreet2: input.addressStreet2?.trim() || null,
+        addressCity: input.addressCity?.trim() || null,
+        addressState: input.addressState ?? "WA",
+        addressZip: input.addressZip?.trim() || null,
         gradeLevels: input.gradeLevels,
         gradeStudentCounts: input.gradeStudentCounts ?? null,
         studentCount: input.studentCount,

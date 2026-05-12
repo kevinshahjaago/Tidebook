@@ -1,7 +1,81 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
-import { CheckCircle, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { CheckCircle, Plus, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+
+// ── Markdown editor with live preview ─────────────────────────────────────────
+
+function MarkdownInput({
+  value,
+  onChange,
+  onBlur,
+  rows = 4,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const [preview, setPreview] = useState(false);
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-gray-400">Supports **bold**, *italic*, and [link](url)</span>
+        <button
+          type="button"
+          onClick={() => setPreview((v) => !v)}
+          className="flex items-center gap-1 text-xs text-aqua-700 hover:underline"
+        >
+          {preview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+          {preview ? "Edit" : "Preview"}
+        </button>
+      </div>
+      {preview ? (
+        <div className="input min-h-[6rem] text-sm prose prose-sm max-w-none [&_strong]:font-semibold [&_a]:text-aqua-700">
+          <ReactMarkdown>{value || "_Nothing to preview yet_"}</ReactMarkdown>
+        </div>
+      ) : (
+        <textarea
+          rows={rows}
+          className="input text-sm w-full font-mono"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Rich text setting input (save on blur) ────────────────────────────────────
+
+function RichTextSettingInput({
+  settingKey,
+  initialValue,
+  onSave,
+}: {
+  settingKey: string;
+  initialValue: string;
+  onSave: (v: string) => void;
+}) {
+  const [localValue, setLocalValue] = useState(initialValue);
+  useEffect(() => { setLocalValue(initialValue); }, [initialValue]);
+
+  return (
+    <MarkdownInput
+      key={settingKey}
+      value={localValue}
+      onChange={setLocalValue}
+      onBlur={() => { if (localValue !== initialValue) onSave(localValue); }}
+      rows={4}
+      placeholder="Enter text (supports **bold**, *italic*, and [link text](url))"
+    />
+  );
+}
 
 // ── Group type editor ─────────────────────────────────────────────────────────
 
@@ -163,14 +237,17 @@ type PaymentMethodOption = {
   value: string;
   label: string;
   description: string;
+  subtext: string;       // markdown shown below the option when selected by a guest
   emailInstructions: string;
   isVisible: boolean;
 };
 
 const PAYMENT_METHOD_DEFAULTS: PaymentMethodOption[] = [
-  { value: "PAID",       label: "Pay by credit card or check",      description: "Payment is due on the day of your visit.",                    emailInstructions: "", isVisible: true },
-  { value: "SCHOLARSHIP", label: "Apply for a scholarship",          description: "For Title I schools and qualifying organizations.",           emailInstructions: "", isVisible: true },
-  { value: "INVOICE",    label: "Invoice / Purchase Order",          description: "For organizations that pay by purchase order or invoice.",   emailInstructions: "", isVisible: true },
+  { value: "CASH_OR_CHECK",       label: "Cash or Check (day of visit)",              description: "We accept cash and checks payable to 'Seattle Aquarium'.", subtext: "", emailInstructions: "", isVisible: true },
+  { value: "CREDIT_DEBIT",        label: "Credit or Debit Card (via call/in-person)", description: "Call us to pay by card, or pay at the ticket window.",        subtext: "", emailInstructions: "", isVisible: true },
+  { value: "ONLINE_PAYMENT_LINK", label: "Online Payment Link",                       description: "We will send you a secure payment link by email.",            subtext: "", emailInstructions: "", isVisible: true },
+  { value: "INVOICE",             label: "Purchase Order / Invoice",                  description: "For organizations that pay by purchase order or invoice.",    subtext: "", emailInstructions: "", isVisible: true },
+  { value: "SCHOLARSHIP",         label: "Applying for a Scholarship",                description: "For Title I schools and qualifying organizations.",           subtext: "", emailInstructions: "", isVisible: true },
 ];
 
 function PaymentMethodOptionsEditor({
@@ -185,10 +262,9 @@ function PaymentMethodOptionsEditor({
   const [options, setOptions] = useState<PaymentMethodOption[]>(() => {
     try {
       const parsed = JSON.parse(initialJson);
-      // Back-fill any missing methods so all three are always shown
       return PAYMENT_METHOD_DEFAULTS.map((def) => {
         const existing = parsed.find((p: PaymentMethodOption) => p.value === def.value);
-        return existing ?? def;
+        return existing ? { subtext: "", ...existing } : def;
       });
     } catch { return PAYMENT_METHOD_DEFAULTS; }
   });
@@ -198,7 +274,7 @@ function PaymentMethodOptionsEditor({
       const parsed = JSON.parse(initialJson);
       setOptions(PAYMENT_METHOD_DEFAULTS.map((def) => {
         const existing = parsed.find((p: PaymentMethodOption) => p.value === def.value);
-        return existing ?? def;
+        return existing ? { subtext: "", ...existing } : def;
       }));
     } catch { /* keep current */ }
   }, [initialJson]);
@@ -212,16 +288,21 @@ function PaymentMethodOptionsEditor({
     save(options.map((o, i) => (i === idx ? { ...o, [field]: val } : o)));
   };
 
-  const LABELS: Record<string, string> = { PAID: "Credit Card / Check", SCHOLARSHIP: "Scholarship", INVOICE: "Invoice / PO" };
+  const METHOD_LABELS: Record<string, string> = {
+    CASH_OR_CHECK: "Cash or Check",
+    CREDIT_DEBIT: "Credit / Debit",
+    ONLINE_PAYMENT_LINK: "Online Payment Link",
+    INVOICE: "Purchase Order / Invoice",
+    SCHOLARSHIP: "Scholarship",
+    PAID: "Credit Card / Check (legacy)",
+  };
 
   return (
     <div className="space-y-4">
       {options.map((opt, idx) => (
         <div key={opt.value} className={`border rounded-lg p-4 ${opt.isVisible ? "bg-white border-gray-200" : "bg-gray-50 border-gray-200 opacity-60"}`}>
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono bg-gray-100 text-gray-600 rounded px-2 py-0.5">{LABELS[opt.value] ?? opt.value}</span>
-            </div>
+            <span className="text-xs font-mono bg-gray-100 text-gray-600 rounded px-2 py-0.5">{METHOD_LABELS[opt.value] ?? opt.value}</span>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input
                 type="checkbox"
@@ -240,7 +321,7 @@ function PaymentMethodOptionsEditor({
                 className="input text-sm mt-1 w-full"
                 value={opt.label}
                 onChange={(e) => updateField(idx, "label", e.target.value)}
-                placeholder="e.g. Pay by check"
+                placeholder="e.g. Cash or Check"
               />
             </div>
             <div>
@@ -252,6 +333,18 @@ function PaymentMethodOptionsEditor({
                 placeholder="One line to help guests choose"
               />
             </div>
+          </div>
+
+          <div className="mb-3">
+            <label className="text-xs font-medium text-gray-600">
+              Selection note — shown to the guest when they choose this option (supports **bold**, *italic*, links)
+            </label>
+            <MarkdownInput
+              value={opt.subtext}
+              onChange={(v) => updateField(idx, "subtext", v)}
+              rows={2}
+              placeholder="Optional note shown when this method is selected, e.g. instructions, links, or reminders"
+            />
           </div>
 
           <div>
@@ -362,7 +455,7 @@ function AccessibilityOptionsEditor({
 type SettingMeta = {
   label: string;
   hint: string;
-  type: "number" | "text" | "url" | "textarea" | "time";
+  type: "number" | "text" | "url" | "textarea" | "time" | "richtext";
 };
 
 type SectionKey = string | "__group_type_options__" | "__payment_method_options__" | "__accessibility_options__" | "__booking_portal_toggle__";
@@ -514,6 +607,26 @@ const SETTING_META: Record<string, SettingMeta> = {
     hint: "The label guests see above the free-text field for notes like parking, lunch space, etc. Leave blank to hide the field.",
     type: "text",
   },
+  booking_payment_subtext: {
+    label: "Payment method footer note",
+    hint: "Shown below the payment method selector on the booking form. Supports **bold**, *italic*, and links. Defaults include the policy about passes and memberships.",
+    type: "richtext",
+  },
+  booking_payment_link_url: {
+    label: "Online payment link — URL",
+    hint: "The payment link sent to guests who choose 'Online Payment Link'. Included in the payment link email and shown in the booking confirmation.",
+    type: "url",
+  },
+  booking_payment_link_email: {
+    label: "Online payment link — contact email",
+    hint: "The email address included in the online payment email so guests can ask questions about their payment.",
+    type: "text",
+  },
+  booking_contact_footer: {
+    label: "Contact info footer",
+    hint: "Shown at the bottom of every booking form step. Supports **bold**, *italic*, and [links](url). Use this for your registrar email and response-time notice.",
+    type: "richtext",
+  },
 };
 
 const SECTIONS: Section[] = [
@@ -533,12 +646,13 @@ const SECTIONS: Section[] = [
       "booking_coc_prefix", "booking_coc_link_label", "booking_coc_suffix",
       "booking_slot_hold_banner",
       "booking_school_district_hint",
+      "booking_contact_footer",
     ],
   },
   {
     heading: "Payment & Invoicing",
-    description: "Control which billing options guests see on the booking form and what payment instructions they receive in their confirmation email.",
-    keys: ["__payment_method_options__"],
+    description: "Control which billing options guests see on the booking form, the footer note shown to all guests, and what payment instructions they receive in confirmation emails.",
+    keys: ["__payment_method_options__", "booking_payment_subtext", "booking_payment_link_url", "booking_payment_link_email"],
   },
   {
     heading: "On-Site Program Scheduling",
@@ -728,7 +842,13 @@ export default function AdminSettings() {
                       <div className="flex-1 min-w-0">
                         <label className="font-medium text-sm text-gray-900">{meta.label}</label>
                         <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{meta.hint}</p>
-                        {meta.type === "textarea" ? (
+                        {meta.type === "richtext" ? (
+                          <RichTextSettingInput
+                            settingKey={key}
+                            initialValue={value}
+                            onSave={(v) => updateMutation.mutate({ key, value: v })}
+                          />
+                        ) : meta.type === "textarea" ? (
                           <textarea
                             rows={3}
                             className="input text-sm mt-2 w-full"

@@ -28,9 +28,12 @@ enum GroupType {
 }
 
 enum PaymentMethod {
-  PAID
+  PAID              // legacy — kept for backward compatibility
   SCHOLARSHIP
   INVOICE
+  CASH_OR_CHECK
+  CREDIT_DEBIT
+  ONLINE_PAYMENT_LINK
 }
 
 enum UserRole {
@@ -66,6 +69,7 @@ enum EmailTriggerType {
   SCHOLARSHIP_INCOMPLETE_10_DAYS
   SCHOLARSHIP_INCOMPLETE_FOLLOWUP
   BUS_REIMBURSEMENT_INFO
+  ONLINE_PAYMENT_LINK_INFO
 }
 
 enum EmailStatus {
@@ -96,9 +100,11 @@ model Booking {
   addressCity      String?
   addressState     String   @default("WA")
   addressZip       String?
-  contactName      String
-  contactEmail     String
-  contactPhone     String
+  contactName         String
+  contactEmail        String
+  contactPhone        String
+  dayOfContactName    String?
+  dayOfContactPhone   String?
 
   gradeLevels        String[]
   gradeStudentCounts String?  // JSON map: { "3rd Grade": 20, "10th Grade": 15 }

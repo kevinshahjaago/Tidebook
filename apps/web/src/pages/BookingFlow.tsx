@@ -36,8 +36,9 @@ const DEFAULT_GROUP_TYPE_OPTIONS: GroupTypeOption[] = [
 ];
 
 const GRADE_OPTIONS = [
-  "Pre-K", "Kindergarten", "1st Grade", "2nd Grade", "3rd Grade",
-  "4th Grade", "5th Grade", "6th Grade", "7th Grade", "8th Grade",
+  "Pre-K (ages 0-3)", "Preschool (ages 4+)", "Kindergarten",
+  "1st Grade", "2nd Grade", "3rd Grade", "4th Grade", "5th Grade",
+  "6th Grade", "7th Grade", "8th Grade",
   "9th Grade", "10th Grade", "11th Grade", "12th Grade",
   "College/University",
 ];
@@ -172,7 +173,8 @@ export default function BookingFlow() {
   const s = (key: string, fallback: string) => publicSettings?.[key] ?? fallback;
 
   const LOWER_GRADES = new Set([
-    "Pre-K", "Kindergarten", "1st Grade", "2nd Grade", "3rd Grade",
+    "Pre-K (ages 0-3)", "Preschool (ages 4+)", "Kindergarten",
+    "1st Grade", "2nd Grade", "3rd Grade",
     "4th Grade", "5th Grade", "6th Grade", "7th Grade", "8th Grade",
   ]);
 
@@ -498,7 +500,7 @@ export default function BookingFlow() {
                         <div className="mt-3 rounded-lg bg-aqua-50 border border-aqua-200 p-3 text-sm space-y-1">
                           {lowerGradeStudents > 0 && (
                             <div className="flex justify-between text-amber-800">
-                              <span>Pre-K – 8th grade ({lowerGradeStudents} students)</span>
+                              <span>Pre-K / Preschool – 8th grade ({lowerGradeStudents} students)</span>
                               <span className="font-medium">→ {Math.ceil(lowerGradeStudents / ratioLower)} chaperone{Math.ceil(lowerGradeStudents / ratioLower) !== 1 ? "s" : ""}</span>
                             </div>
                           )}

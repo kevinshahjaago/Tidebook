@@ -14,6 +14,7 @@ import {
 import { z } from "zod";
 import { generateTimeSlots } from "../utils/dates";
 import { addMinutes } from "date-fns";
+import { config } from "../config";
 
 export const publicRouter = Router();
 
@@ -46,6 +47,19 @@ const PUBLIC_SETTINGS = [
   "booking_payment_link_url",
   "booking_payment_link_email",
   "booking_contact_footer",
+  "accessibility_intro_header",
+  "accessibility_intro_body",
+  "accessibility_accommodations_question",
+  "accessibility_accommodations_options",
+  "accessibility_multilingual_question",
+  "accessibility_multilingual_options",
+  "accessibility_multilingual_languages",
+  "accessibility_subtext",
+  "scholarship_header",
+  "scholarship_requirements_body",
+  "scholarship_qualification_question",
+  "scholarship_qualifications",
+  "transportation_reimbursement_enabled",
 ] as const;
 
 publicRouter.get("/settings", publicRateLimit, async (_req: Request, res: Response, next: NextFunction) => {
@@ -129,7 +143,23 @@ publicRouter.get("/classes/availability", publicRateLimit, async (req: Request, 
 publicRouter.post("/bookings", publicRateLimit, validate(createBookingSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const ipAddress = req.ip;
-    const result = await createBooking(req.body, ipAddress);
+    const input = req.body;
+
+    // hCaptcha verification
+    const secretKey = config.HCAPTCHA_SECRET_KEY;
+    if (secretKey && input.hcaptchaToken) {
+      const verifyUrl = "https://hcaptcha.com/siteverify";
+      const params = new URLSearchParams({ secret: secretKey, response: input.hcaptchaToken });
+      const r = await fetch(verifyUrl, { method: "POST", body: params });
+      const result = await r.json() as { success: boolean };
+      if (!result.success) {
+        return res.status(400).json({ error: { message: "Captcha verification failed. Please try again." } });
+      }
+    } else if (secretKey && !input.hcaptchaToken) {
+      return res.status(400).json({ error: { message: "Captcha verification required." } });
+    }
+
+    const result = await createBooking(input, ipAddress);
 
     if (!result.booking) {
       // Honeypot triggered — return fake success

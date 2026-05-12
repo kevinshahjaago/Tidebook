@@ -36,6 +36,7 @@ const envSchema = z.object({
   API_BASE_URL: z.string().default("http://localhost:4000"),
   CORS_ORIGINS: z.string().default("http://localhost:3000"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
+  HCAPTCHA_SECRET_KEY: z.string().optional(),
   SLOW_QUERY_THRESHOLD_MS: z.coerce.number().default(500),
 });
 

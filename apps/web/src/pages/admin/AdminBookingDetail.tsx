@@ -157,6 +157,12 @@ export default function AdminBookingDetail() {
                   <dd>{(booking as any).specialRequests}</dd>
                 </>
               )}
+              {(booking as any).transportationReimbursementRequested && (
+                <>
+                  <dt className="text-gray-500">Transportation Reimbursement</dt>
+                  <dd className="text-blue-700 font-medium">Requested</dd>
+                </>
+              )}
             </dl>
           </div>
 
@@ -215,8 +221,66 @@ export default function AdminBookingDetail() {
                   <dd>{booking.dayOfContactPhone}</dd>
                 </>
               )}
+              {(booking as any).dayOfContactRole && (
+                <>
+                  <dt className="text-gray-500">Day-of-Visit Role</dt>
+                  <dd>{(booking as any).dayOfContactRole}</dd>
+                </>
+              )}
+              {(booking as any).dayOfContactEmail && (
+                <>
+                  <dt className="text-gray-500">Day-of-Visit Email</dt>
+                  <dd><a href={`mailto:${(booking as any).dayOfContactEmail}`} className="text-aqua-700">{(booking as any).dayOfContactEmail}</a></dd>
+                </>
+              )}
             </dl>
           </div>
+
+          {/* Accessibility & Multilingual Support */}
+          {(booking as any).accessibilityData && (() => {
+            try {
+              const data = JSON.parse((booking as any).accessibilityData);
+              const hasData = (data.accommodations?.length > 0) || (data.multilingual?.length > 0);
+              if (!hasData) return null;
+              return (
+                <div className="card">
+                  <h2 className="font-semibold mb-3">Accessibility & Multilingual Support</h2>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+                    {data.accommodations?.length > 0 && (
+                      <>
+                        <dt className="text-gray-500">Accommodations</dt>
+                        <dd className="text-amber-700">{data.accommodations.join(", ")}</dd>
+                      </>
+                    )}
+                    {data.accommodationsOther && (
+                      <>
+                        <dt className="text-gray-500">Accommodations (other)</dt>
+                        <dd>{data.accommodationsOther}</dd>
+                      </>
+                    )}
+                    {data.multilingual?.length > 0 && (
+                      <>
+                        <dt className="text-gray-500">Multilingual support</dt>
+                        <dd>{data.multilingual.join(", ")}</dd>
+                      </>
+                    )}
+                    {data.multilingualOther && (
+                      <>
+                        <dt className="text-gray-500">Multilingual (other)</dt>
+                        <dd>{data.multilingualOther}</dd>
+                      </>
+                    )}
+                    {data.languages && Object.entries(data.languages).length > 0 && (
+                      <>
+                        <dt className="text-gray-500">Languages</dt>
+                        <dd>{Object.entries(data.languages).map(([item, lang]) => `${item}: ${lang as string}`).join("; ")}</dd>
+                      </>
+                    )}
+                  </dl>
+                </div>
+              );
+            } catch { return null; }
+          })()}
 
           {/* Scholarship */}
           {booking.scholarshipApplication && (
@@ -229,6 +293,12 @@ export default function AdminBookingDetail() {
                 <dd>{booking.scholarshipApplication.titleOneStatus ? "Yes" : "No"}</dd>
                 <dt className="text-gray-500">School Enrollment</dt>
                 <dd>{booking.scholarshipApplication.enrollmentCount}</dd>
+                {booking.scholarshipApplication.scholarshipQualifications?.length > 0 && (
+                  <>
+                    <dt className="text-gray-500">Qualifications</dt>
+                    <dd>{booking.scholarshipApplication.scholarshipQualifications.join(", ")}</dd>
+                  </>
+                )}
                 {booking.scholarshipApplication.budgetAllocated && (
                   <>
                     <dt className="text-gray-500">Budget allocated</dt>

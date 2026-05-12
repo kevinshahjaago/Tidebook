@@ -30,6 +30,10 @@ export interface Booking {
   contactPhone: string;
   dayOfContactName: string | null;
   dayOfContactPhone: string | null;
+  dayOfContactEmail: string | null;
+  dayOfContactRole: string | null;
+  accessibilityData: string | null;
+  transportationReimbursementRequested: boolean;
   gradeLevels: string[];
   gradeStudentCounts: string | null;
   studentCount: number;
@@ -124,6 +128,7 @@ export interface ScholarshipApplication {
   reviewedAt: string | null;
   reviewNotes: string | null;
   budgetAllocated: number | null;
+  scholarshipQualifications: string[];
 }
 
 // ─── Bus Reimbursement ────────────────────────────────────────────────────────

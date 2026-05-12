@@ -63,6 +63,8 @@ export const createBookingSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
+  dayOfContactEmail: z.string().email("Please enter a valid email address").optional().or(z.literal("")),
+  dayOfContactRole: z.string().max(200, "Role is too long").optional().or(z.literal("")),
   gradeLevels: z
     .array(z.string().max(20))
     .min(1, "Please select at least one grade level for your group")
@@ -90,8 +92,17 @@ export const createBookingSchema = z.object({
   }),
   accessibilityNeeds: z
     .string()
-    .min(1, "Please let us know about any accessibility needs — select all that apply or enter 'None'")
-    .max(2000, "Please keep this under 2,000 characters"),
+    .max(2000, "Please keep this under 2,000 characters")
+    .optional(),
+  accessibilityAccommodations: z.array(z.string()).default([]),
+  accessibilityAccommodationsOther: z.string().max(1000, "Please keep this under 1,000 characters").optional().or(z.literal("")),
+  accessibilityMultilingual: z.array(z.string()).default([]),
+  accessibilityMultilingualOther: z.string().max(1000, "Please keep this under 1,000 characters").optional().or(z.literal("")),
+  accessibilityLanguages: z.record(z.string(), z.string()).optional(),
+  scholarshipQualifies: z.boolean().optional(),
+  scholarshipQualifications: z.array(z.string()).optional(),
+  transportationReimbursementRequested: z.boolean().default(false),
+  hcaptchaToken: z.string().optional(),
   cocAcknowledged: z.literal(true, {
     errorMap: () => ({
       message: "Please read and acknowledge the Code of Conduct before submitting",
@@ -132,6 +143,15 @@ export const createBookingSchema = z.object({
     if (!data.addressZip?.trim()) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["addressZip"], message: "Please enter your ZIP code" });
     }
+  }
+  if (data.accessibilityAccommodations.includes("Other") && !data.accessibilityAccommodationsOther?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accessibilityAccommodationsOther"], message: "Please describe the accommodation needed" });
+  }
+  if (data.accessibilityMultilingual.includes("Other") && !data.accessibilityMultilingualOther?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accessibilityMultilingualOther"], message: "Please describe the multilingual support needed" });
+  }
+  if (data.scholarshipQualifies === true && !(data.scholarshipQualifications?.length)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["scholarshipQualifications"], message: "Please select at least one qualifying criterion" });
   }
 });
 

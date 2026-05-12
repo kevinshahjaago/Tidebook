@@ -27,6 +27,7 @@ function encryptBookingPii(input: CreateBookingInput) {
     contactPhone: encrypt(input.contactPhone),
     ...(input.dayOfContactName?.trim() ? { dayOfContactName: encrypt(input.dayOfContactName) } : {}),
     ...(input.dayOfContactPhone?.trim() ? { dayOfContactPhone: encrypt(input.dayOfContactPhone) } : {}),
+    ...(input.dayOfContactEmail?.trim() ? { dayOfContactEmail: encrypt(input.dayOfContactEmail) } : {}),
   };
 }
 
@@ -37,6 +38,7 @@ function decryptBookingPii(booking: {
   contactPhone: string;
   dayOfContactName?: string | null;
   dayOfContactPhone?: string | null;
+  dayOfContactEmail?: string | null;
 }) {
   return {
     organizationName: decrypt(booking.organizationName),
@@ -45,6 +47,7 @@ function decryptBookingPii(booking: {
     contactPhone: decrypt(booking.contactPhone),
     ...(booking.dayOfContactName ? { dayOfContactName: decrypt(booking.dayOfContactName) } : {}),
     ...(booking.dayOfContactPhone ? { dayOfContactPhone: decrypt(booking.dayOfContactPhone) } : {}),
+    ...(booking.dayOfContactEmail ? { dayOfContactEmail: decrypt(booking.dayOfContactEmail) } : {}),
   };
 }
 
@@ -55,6 +58,7 @@ export function decryptBooking<T extends {
   contactPhone: string;
   dayOfContactName?: string | null;
   dayOfContactPhone?: string | null;
+  dayOfContactEmail?: string | null;
 }>(booking: T): T {
   return {
     ...booking,
@@ -63,12 +67,17 @@ export function decryptBooking<T extends {
 }
 
 function requiresRegistrarReview(input: CreateBookingInput): boolean {
-  const hasAccessibilityNeeds =
+  const hasOldAccessibilityNeeds =
     !!input.accessibilityNeeds?.trim() &&
     input.accessibilityNeeds.trim() !== "None";
+  const hasNewAccessibilityNeeds =
+    (input.accessibilityAccommodations?.length ?? 0) > 0 ||
+    (input.accessibilityMultilingual?.length ?? 0) > 0;
   return (
     input.paymentMethod === PaymentMethod.SCHOLARSHIP ||
-    hasAccessibilityNeeds
+    input.scholarshipQualifies === true ||
+    hasOldAccessibilityNeeds ||
+    hasNewAccessibilityNeeds
   );
 }
 
@@ -85,8 +94,13 @@ export async function createBooking(
 
   const groupSize = input.studentCount + input.adultCount;
 
-  // Validate scholarship sub-flow
-  if (input.paymentMethod === PaymentMethod.SCHOLARSHIP && !input.scholarship) {
+  // If scholarshipQualifies is true, override payment method to SCHOLARSHIP
+  const effectivePaymentMethod = (input.scholarshipQualifies === true
+    ? PaymentMethod.SCHOLARSHIP
+    : input.paymentMethod) as unknown as PaymentMethod;
+
+  // Validate scholarship sub-flow (only for old path — new path uses scholarshipQualifies)
+  if (effectivePaymentMethod === PaymentMethod.SCHOLARSHIP && !input.scholarship && input.scholarshipQualifies !== true) {
     throw new AppError(
       ErrorCode.VALIDATION_ERROR,
       "Scholarship information is required",
@@ -162,14 +176,36 @@ export async function createBooking(
         addressCity: input.addressCity?.trim() || null,
         addressState: input.addressState ?? "WA",
         addressZip: input.addressZip?.trim() || null,
+        dayOfContactRole: input.dayOfContactRole?.trim() || null,
+        dayOfContactEmail: encrypted.dayOfContactEmail ?? null,
         gradeLevels: input.gradeLevels,
         gradeStudentCounts: input.gradeStudentCounts ?? null,
         studentCount: input.studentCount,
         adultCount: input.adultCount,
         visitDate,
         arrivalTimeSlot: input.arrivalTimeSlot,
-        paymentMethod: input.paymentMethod as unknown as PaymentMethod,
-        accessibilityNeeds: input.accessibilityNeeds,
+        paymentMethod: effectivePaymentMethod,
+        accessibilityNeeds: (() => {
+          const parts: string[] = [];
+          if (input.accessibilityAccommodations?.length) {
+            parts.push(...input.accessibilityAccommodations.filter((a) => a !== "Other"));
+            if (input.accessibilityAccommodationsOther?.trim()) parts.push(input.accessibilityAccommodationsOther.trim());
+          }
+          if (input.accessibilityMultilingual?.length) {
+            parts.push(`Multilingual: ${input.accessibilityMultilingual.filter((m) => m !== "Other").join(", ")}`);
+            if (input.accessibilityMultilingualOther?.trim()) parts.push(input.accessibilityMultilingualOther.trim());
+          }
+          if (input.accessibilityNeeds?.trim() && input.accessibilityNeeds.trim() !== "None") parts.push(input.accessibilityNeeds);
+          return parts.length > 0 ? parts.join("; ") : null;
+        })(),
+        accessibilityData: JSON.stringify({
+          accommodations: input.accessibilityAccommodations ?? [],
+          accommodationsOther: input.accessibilityAccommodationsOther ?? "",
+          multilingual: input.accessibilityMultilingual ?? [],
+          multilingualOther: input.accessibilityMultilingualOther ?? "",
+          languages: input.accessibilityLanguages ?? {},
+        }),
+        transportationReimbursementRequested: input.transportationReimbursementRequested ?? false,
         specialRequests: input.specialRequests,
         cocAcknowledged: input.cocAcknowledged,
         rescheduleTokenHash: tokenHash,
@@ -185,15 +221,25 @@ export async function createBooking(
             }
           : undefined,
         scholarshipApplication:
-          input.paymentMethod === PaymentMethod.SCHOLARSHIP && input.scholarship
+          input.scholarshipQualifies === true
             ? {
                 create: {
-                  titleOneStatus: input.scholarship.titleOneStatus,
-                  enrollmentCount: input.scholarship.enrollmentCount,
-                  qualifyingInfo: input.scholarship.qualifyingInfo,
+                  titleOneStatus: false,
+                  enrollmentCount: 0,
+                  qualifyingInfo: null,
+                  scholarshipQualifications: input.scholarshipQualifications ?? [],
                 },
               }
-            : undefined,
+            : (effectivePaymentMethod === PaymentMethod.SCHOLARSHIP && input.scholarship
+                ? {
+                    create: {
+                      titleOneStatus: input.scholarship.titleOneStatus,
+                      enrollmentCount: input.scholarship.enrollmentCount,
+                      qualifyingInfo: input.scholarship.qualifyingInfo,
+                      scholarshipQualifications: [],
+                    },
+                  }
+                : undefined),
       },
       include: {
         classBookings: { include: { classOffering: true } },
@@ -203,6 +249,15 @@ export async function createBooking(
 
     return created;
   });
+
+  // Create bus reimbursement record if transportation was requested and scholarship is attached
+  if (input.transportationReimbursementRequested && booking.scholarshipApplication) {
+    await prisma.busReimbursement.upsert({
+      where: { bookingId: booking.id },
+      create: { bookingId: booking.id, status: "NOT_SUBMITTED" },
+      update: {},
+    });
+  }
 
   await auditLog({
     actorType: "SYSTEM",

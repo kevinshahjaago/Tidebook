@@ -17,8 +17,9 @@ import { AlertCircle, Fish, Clock } from "lucide-react";
 import { AxiosError } from "axios";
 import { format, parseISO } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 type GroupTypeOption = { value: string; label: string; description: string };
 
 function formatTimeSlot(time: string): string {
@@ -72,6 +73,26 @@ export default function BookingFlow() {
   const holdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdIdRef = useRef<string | null>(null);
 
+  // Day-of-contact: "same as lead" shortcut
+  const [dayOfSameAsLead, setDayOfSameAsLead] = useState(false);
+
+  // New accessibility structured state
+  const [accessibilityAccommodations, setAccessibilityAccommodations] = useState<string[]>([]);
+  const [accessibilityAccommodationsOther, setAccessibilityAccommodationsOther] = useState("");
+  const [accessibilityMultilingual, setAccessibilityMultilingual] = useState<string[]>([]);
+  const [accessibilityMultilingualOther, setAccessibilityMultilingualOther] = useState("");
+  const [accessibilityLanguages, setAccessibilityLanguages] = useState<Record<string, string>>({});
+
+  // Scholarship step state
+  const [scholarshipQualifies, setScholarshipQualifies] = useState<boolean | null>(null);
+  const [scholarshipQualificationsSelected, setScholarshipQualificationsSelected] = useState<string[]>([]);
+  const [transportationRequested, setTransportationRequested] = useState(false);
+
+  // hCaptcha
+  const [hcaptchaToken, setHcaptchaToken] = useState<string | null>(null);
+  const hcaptchaRef = useRef<any>(null);
+  const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string | undefined;
+
   const form = useForm<CreateBookingInput>({
     resolver: zodResolver(createBookingSchema),
     defaultValues: {
@@ -79,7 +100,10 @@ export default function BookingFlow() {
       studentCount: undefined as any,
       adultCount: undefined as any,
       gradeLevels: [],
-      accessibilityNeeds: "None",
+      accessibilityNeeds: undefined,
+      accessibilityAccommodations: [],
+      accessibilityMultilingual: [],
+      transportationReimbursementRequested: false,
       addressState: "WA",
     },
   });
@@ -148,12 +172,31 @@ export default function BookingFlow() {
 
   const isSchoolGroup = groupType === GroupType.SCHOOL || groupType === GroupType.HOMESCHOOL;
 
-  // Keep accessibilityNeeds form value in sync with checkbox state
+  // Keep accessibilityNeeds form value in sync with legacy checkbox state (backwards compat)
   React.useEffect(() => {
     const parts = [...accessibilitySelected];
     if (accessibilityOther.trim()) parts.push(`Other: ${accessibilityOther.trim()}`);
-    setValue("accessibilityNeeds", parts.length > 0 ? parts.join(", ") : "None");
+    // Only set if no new structured data exists
+    if (accessibilityAccommodations.length === 0 && accessibilityMultilingual.length === 0) {
+      setValue("accessibilityNeeds", parts.length > 0 ? parts.join(", ") : undefined);
+    }
   }, [accessibilitySelected, accessibilityOther]);
+
+  // Sync new accessibility structured state → form values
+  React.useEffect(() => {
+    setValue("accessibilityAccommodations", accessibilityAccommodations);
+    setValue("accessibilityAccommodationsOther", accessibilityAccommodationsOther);
+    setValue("accessibilityMultilingual", accessibilityMultilingual);
+    setValue("accessibilityMultilingualOther", accessibilityMultilingualOther);
+    setValue("accessibilityLanguages", accessibilityLanguages);
+  }, [accessibilityAccommodations, accessibilityAccommodationsOther, accessibilityMultilingual, accessibilityMultilingualOther, accessibilityLanguages]);
+
+  // Sync scholarship state → form values
+  React.useEffect(() => {
+    setValue("scholarshipQualifies", scholarshipQualifies ?? undefined);
+    setValue("scholarshipQualifications", scholarshipQualificationsSelected);
+    setValue("transportationReimbursementRequested", transportationRequested);
+  }, [scholarshipQualifies, scholarshipQualificationsSelected, transportationRequested]);
 
   // Sync per-grade counts → form fields (school/homeschool only)
   React.useEffect(() => {
@@ -164,6 +207,18 @@ export default function BookingFlow() {
     setValue("studentCount", total > 0 ? total : (undefined as any));
     (setValue as any)("gradeStudentCounts", JSON.stringify(gradeCountMap));
   }, [gradeCountMap, isSchoolGroup]);
+
+  // "Same as lead" effect — copy lead contact info to day-of fields
+  const contactName = watch("contactName");
+  const contactPhone = watch("contactPhone");
+  const contactEmail = watch("contactEmail");
+  React.useEffect(() => {
+    if (dayOfSameAsLead) {
+      setValue("dayOfContactName", contactName || "");
+      setValue("dayOfContactPhone", contactPhone || "");
+      setValue("dayOfContactEmail", contactEmail || "");
+    }
+  }, [dayOfSameAsLead, contactName, contactPhone, contactEmail]);
 
   const { data: publicSettings } = useQuery({
     queryKey: ["public-settings"],
@@ -220,6 +275,24 @@ export default function BookingFlow() {
     try { return JSON.parse(s("accessibility_options", "[]")); } catch { return []; }
   })();
 
+  const accessibilityAccommodationsOptions: string[] = (() => {
+    try { return JSON.parse(s("accessibility_accommodations_options", "[]")); } catch { return ["Private/quiet space", "High-capacity adult-sized changing table", "Tactile sensory tour", "Other"]; }
+  })();
+
+  const accessibilityMultilingualOptions: string[] = (() => {
+    try { return JSON.parse(s("accessibility_multilingual_options", "[]")); } catch { return ["Field guides with Puget Sound organisms", "Translators to stay with the group throughout visit", "Scavenger hunt", "Other"]; }
+  })();
+
+  const accessibilityMultilingualLanguages: string[] = (() => {
+    try { return JSON.parse(s("accessibility_multilingual_languages", "[]")); } catch { return ["Spanish", "Mandarin Chinese", "Vietnamese", "Somali", "Tagalog", "Korean", "Russian", "Arabic", "Amharic", "Other"]; }
+  })();
+
+  const scholarshipQualificationOptions: string[] = (() => {
+    try { return JSON.parse(s("scholarship_qualifications", "[]")); } catch { return ["Title I school designation", "Free or reduced lunch program participation (>50%)", "Community-based organization serving low-income families", "Foster care agency or residential program", "Other qualifying circumstance (please describe in special requests)"]; }
+  })();
+
+  const transportationReimbEnabled = s("transportation_reimbursement_enabled", "false") === "true";
+
   const specialRequestsLabel = s("booking_special_requests_label", "Special Requests");
 
   const cocUrl = s("code_of_conduct_url", "https://seattleaquarium.org/wp-content/uploads/2024/09/Seattle-Aquarium-Field-Trip-Code-of-Conduct-2024-25.pdf");
@@ -245,7 +318,7 @@ export default function BookingFlow() {
         "/public/classes/availability",
         { params: { date: visitDate, arrivalTimeSlot } }
       ).then((r) => r.data.availability),
-    enabled: !!visitDate && !!arrivalTimeSlot && step === 4,
+    enabled: !!visitDate && !!arrivalTimeSlot && step === 6,
     staleTime: 60_000,
   });
 
@@ -285,7 +358,9 @@ export default function BookingFlow() {
   const onSubmit = form.handleSubmit(
     (data) => {
       setClientValidationError(null);
-      createBookingMutation.mutate(data);
+      // Attach hcaptcha token if available
+      const submitData = hcaptchaToken ? { ...data, hcaptchaToken } : data;
+      createBookingMutation.mutate(submitData);
     },
     (errors) => {
       const firstMsg = Object.values(errors).map((e: any) => e?.message).find(Boolean);
@@ -354,7 +429,7 @@ export default function BookingFlow() {
           {portalEnabled && (
           <>
           <div className="flex items-center justify-center gap-2 mb-8">
-            {[1, 2, 3, 4, 5].map((s) => (
+            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
               <div
                 key={s}
                 className={`h-2 rounded-full transition-all ${
@@ -709,41 +784,81 @@ export default function BookingFlow() {
                       {errors.contactPhone && <p className="error-message">{errors.contactPhone.message}</p>}
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Day-of-Visit Contact Name</label>
-                      <input
-                        className="input"
-                        placeholder="If different from lead contact"
-                        {...form.register("dayOfContactName")}
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Day-of-Visit Phone</label>
-                      <input
-                        type="tel"
-                        inputMode="tel"
-                        placeholder="(206) 555-1234"
-                        className={`input ${errors.dayOfContactPhone ? "input-error" : ""}`}
-                        {...(() => {
-                          const { onChange, ...rest } = form.register("dayOfContactPhone");
-                          return {
-                            ...rest,
-                            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                              e.target.value = formatPhone(e.target.value);
-                              onChange(e);
-                            },
-                          };
-                        })()}
-                      />
-                      {errors.dayOfContactPhone && <p className="error-message">{errors.dayOfContactPhone.message}</p>}
-                    </div>
-                  </div>
                   <div>
                     <label className="label">Email Address (required)</label>
                     <input type="email" className={`input ${errors.contactEmail ? "input-error" : ""}`} {...form.register("contactEmail")} />
                     {errors.contactEmail && <p className="error-message">{errors.contactEmail.message}</p>}
                   </div>
+
+                  {/* Day-of-visit contact */}
+                  <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-gray-800">Day-of-Visit Contact</h3>
+                      <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-aqua-700"
+                          checked={dayOfSameAsLead}
+                          onChange={(e) => setDayOfSameAsLead(e.target.checked)}
+                        />
+                        Same as lead contact
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="label text-xs">Name</label>
+                        <input
+                          className="input"
+                          placeholder="If different from lead contact"
+                          disabled={dayOfSameAsLead}
+                          {...form.register("dayOfContactName")}
+                        />
+                      </div>
+                      <div>
+                        <label className="label text-xs">Phone</label>
+                        <input
+                          type="tel"
+                          inputMode="tel"
+                          placeholder="(206) 555-1234"
+                          className={`input ${errors.dayOfContactPhone ? "input-error" : ""}`}
+                          disabled={dayOfSameAsLead}
+                          {...(() => {
+                            const { onChange, ...rest } = form.register("dayOfContactPhone");
+                            return {
+                              ...rest,
+                              onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                                e.target.value = formatPhone(e.target.value);
+                                onChange(e);
+                              },
+                            };
+                          })()}
+                        />
+                        {errors.dayOfContactPhone && <p className="error-message">{errors.dayOfContactPhone.message}</p>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="label text-xs">Email</label>
+                        <input
+                          type="email"
+                          className={`input ${errors.dayOfContactEmail ? "input-error" : ""}`}
+                          placeholder="day-of email (optional)"
+                          disabled={dayOfSameAsLead}
+                          {...form.register("dayOfContactEmail")}
+                        />
+                        {errors.dayOfContactEmail && <p className="error-message">{errors.dayOfContactEmail.message}</p>}
+                      </div>
+                      <div>
+                        <label className="label text-xs">Role / Title</label>
+                        <input
+                          className="input"
+                          placeholder="e.g. Chaperone Lead, Teacher"
+                          {...form.register("dayOfContactRole")}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Grade levels only shown for non-school groups — school/homeschool collect this in step 2 */}
                   {!isSchoolGroup && (
                     <div>
@@ -764,47 +879,7 @@ export default function BookingFlow() {
                       {errors.gradeLevels && <p className="error-message">{errors.gradeLevels.message}</p>}
                     </div>
                   )}
-                  <div>
-                    <label className="label">Accessibility & Accommodation Needs</label>
-                    <p className="text-xs text-gray-500 mb-2">Select all that apply for your group. We'll make sure everything is ready for your visit.</p>
-                    <div className="space-y-1.5">
-                      {accessibilityOptions.map((opt) => (
-                        <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            value={opt}
-                            className="rounded border-gray-300 text-aqua-700"
-                            checked={accessibilitySelected.includes(opt)}
-                            onChange={(e) => {
-                              setAccessibilitySelected((prev) =>
-                                e.target.checked ? [...prev, opt] : prev.filter((v) => v !== opt)
-                              );
-                            }}
-                          />
-                          {opt}
-                        </label>
-                      ))}
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="rounded border-gray-300 text-aqua-700"
-                          checked={accessibilityOther !== ""}
-                          onChange={(e) => setAccessibilityOther(e.target.checked ? " " : "")}
-                        />
-                        Other (please describe)
-                      </label>
-                      {accessibilityOther !== "" && (
-                        <input
-                          className="input text-sm mt-1 w-full ml-6"
-                          placeholder="Please describe any other needs"
-                          value={accessibilityOther.trim()}
-                          onChange={(e) => setAccessibilityOther(e.target.value)}
-                          autoFocus
-                        />
-                      )}
-                    </div>
-                    {errors.accessibilityNeeds && <p className="error-message mt-1">{errors.accessibilityNeeds.message}</p>}
-                  </div>
+
                   {specialRequestsLabel && (
                     <div>
                       <label className="label">{specialRequestsLabel}</label>
@@ -864,10 +939,11 @@ export default function BookingFlow() {
                     )}
                   </div>
 
-                  {/* Scholarship sub-flow when scholarship is selected */}
+                  {/* Legacy scholarship sub-flow: still shown for SCHOLARSHIP payment method (old path) */}
                   {paymentMethod === PaymentMethod.SCHOLARSHIP && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
                       <h3 className="font-medium text-amber-900">Scholarship Information</h3>
+                      <p className="text-xs text-amber-700">You can also complete the scholarship section on the next step.</p>
                       <label className="flex items-center gap-2 text-sm">
                         <input type="checkbox" className="rounded" {...form.register("scholarship.titleOneStatus")} />
                         My school qualifies as Title I
@@ -915,6 +991,7 @@ export default function BookingFlow() {
                     onClick={async () => {
                       const fieldsToValidate: Parameters<typeof trigger>[0] = [
                         "organizationName", "contactName", "contactPhone", "contactEmail",
+                        "dayOfContactPhone", "dayOfContactEmail",
                         "paymentMethod",
                         "addressStreet1", "addressCity", "addressZip",
                         // gradeLevels only validated here for non-school groups (school/homeschool already did it in step 2)
@@ -934,8 +1011,316 @@ export default function BookingFlow() {
               </div>
             )}
 
-            {/* Step 4: Class Selection */}
-            {step === 4 && (() => {
+            {/* Step 4: Accessibility & Multilingual Support */}
+            {step === 4 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-2">{s("accessibility_intro_header", "Accessibility & Multilingual Support")}</h2>
+                {s("accessibility_intro_body", "") && (
+                  <div className="text-gray-600 text-sm mb-6 prose prose-sm max-w-none">
+                    <ReactMarkdown>{s("accessibility_intro_body", "")}</ReactMarkdown>
+                  </div>
+                )}
+
+                <div className="space-y-6">
+                  {/* Accommodations question */}
+                  <div>
+                    <label className="label">{s("accessibility_accommodations_question", "Which of these accommodations would be helpful for any of your students?")}</label>
+                    <div className="space-y-1.5 mt-2">
+                      {accessibilityAccommodationsOptions.map((opt) => (
+                        <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-aqua-700"
+                            checked={accessibilityAccommodations.includes(opt)}
+                            onChange={(e) => {
+                              setAccessibilityAccommodations((prev) =>
+                                e.target.checked ? [...prev, opt] : prev.filter((v) => v !== opt)
+                              );
+                              // Clear language for this item if unchecked
+                              if (!e.target.checked) {
+                                setAccessibilityLanguages((prev) => {
+                                  const next = { ...prev };
+                                  delete next[opt];
+                                  return next;
+                                });
+                              }
+                            }}
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                    {accessibilityAccommodations.includes("Other") && (
+                      <div className="mt-2 ml-6">
+                        <input
+                          className={`input text-sm w-full ${errors.accessibilityAccommodationsOther ? "input-error" : ""}`}
+                          placeholder="Please describe the accommodation needed"
+                          value={accessibilityAccommodationsOther}
+                          onChange={(e) => setAccessibilityAccommodationsOther(e.target.value)}
+                          autoFocus
+                        />
+                        {errors.accessibilityAccommodationsOther && (
+                          <p className="error-message">{errors.accessibilityAccommodationsOther.message}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Multilingual question */}
+                  <div>
+                    <label className="label">{s("accessibility_multilingual_question", "Which of these accommodations are needed for multi-lingual support?")}</label>
+                    <div className="space-y-1.5 mt-2">
+                      {accessibilityMultilingualOptions.map((opt) => (
+                        <div key={opt}>
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-aqua-700"
+                              checked={accessibilityMultilingual.includes(opt)}
+                              onChange={(e) => {
+                                setAccessibilityMultilingual((prev) =>
+                                  e.target.checked ? [...prev, opt] : prev.filter((v) => v !== opt)
+                                );
+                                if (!e.target.checked) {
+                                  setAccessibilityLanguages((prev) => {
+                                    const next = { ...prev };
+                                    delete next[opt];
+                                    return next;
+                                  });
+                                }
+                              }}
+                            />
+                            {opt}
+                          </label>
+                          {/* Language selector for this multilingual item */}
+                          {accessibilityMultilingual.includes(opt) && opt !== "Other" && (
+                            <div className="mt-1 ml-6">
+                              <select
+                                className="input text-sm"
+                                value={accessibilityLanguages[opt] ?? ""}
+                                onChange={(e) => {
+                                  setAccessibilityLanguages((prev) => ({ ...prev, [opt]: e.target.value }));
+                                }}
+                              >
+                                <option value="">Select language…</option>
+                                {accessibilityMultilingualLanguages.map((lang) => (
+                                  <option key={lang} value={lang}>{lang}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {accessibilityMultilingual.includes("Other") && (
+                      <div className="mt-2 ml-6">
+                        <input
+                          className={`input text-sm w-full ${errors.accessibilityMultilingualOther ? "input-error" : ""}`}
+                          placeholder="Please describe the multilingual support needed"
+                          value={accessibilityMultilingualOther}
+                          onChange={(e) => setAccessibilityMultilingualOther(e.target.value)}
+                        />
+                        {errors.accessibilityMultilingualOther && (
+                          <p className="error-message">{errors.accessibilityMultilingualOther.message}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Legacy accessibility options (from old settings key) */}
+                  {accessibilityOptions.length > 0 && (
+                    <div>
+                      <label className="label">Additional Accessibility & Accommodation Needs</label>
+                      <p className="text-xs text-gray-500 mb-2">Select all that apply for your group.</p>
+                      <div className="space-y-1.5">
+                        {accessibilityOptions.map((opt) => (
+                          <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              value={opt}
+                              className="rounded border-gray-300 text-aqua-700"
+                              checked={accessibilitySelected.includes(opt)}
+                              onChange={(e) => {
+                                setAccessibilitySelected((prev) =>
+                                  e.target.checked ? [...prev, opt] : prev.filter((v) => v !== opt)
+                                );
+                              }}
+                            />
+                            {opt}
+                          </label>
+                        ))}
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-aqua-700"
+                            checked={accessibilityOther !== ""}
+                            onChange={(e) => setAccessibilityOther(e.target.checked ? " " : "")}
+                          />
+                          Other (please describe)
+                        </label>
+                        {accessibilityOther !== "" && (
+                          <input
+                            className="input text-sm mt-1 w-full ml-6"
+                            placeholder="Please describe any other needs"
+                            value={accessibilityOther.trim()}
+                            onChange={(e) => setAccessibilityOther(e.target.value)}
+                            autoFocus
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subtext */}
+                  {s("accessibility_subtext", "") && (
+                    <p className="text-xs text-gray-500 italic">{s("accessibility_subtext", "")}</p>
+                  )}
+                </div>
+
+                <div className="flex justify-between mt-6">
+                  <button onClick={() => setStep(3)} className="btn-secondary">Back</button>
+                  <button
+                    onClick={async () => {
+                      const fieldsToValidate: Parameters<typeof trigger>[0] = [
+                        ...(accessibilityAccommodations.includes("Other") ? (["accessibilityAccommodationsOther"] as any) : []),
+                        ...(accessibilityMultilingual.includes("Other") ? (["accessibilityMultilingualOther"] as any) : []),
+                      ];
+                      const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
+                      if (valid) setStep(5);
+                    }}
+                    className="btn-primary"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Scholarship Eligibility */}
+            {step === 5 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-2">{s("scholarship_header", "Scholarship Eligibility")}</h2>
+                {s("scholarship_requirements_body", "") && (
+                  <div className="text-gray-600 text-sm mb-6 prose prose-sm max-w-none">
+                    <ReactMarkdown>{s("scholarship_requirements_body", "")}</ReactMarkdown>
+                  </div>
+                )}
+
+                <div className="space-y-5">
+                  {/* Yes/No question */}
+                  <div>
+                    <p className="label">Do you believe your group qualifies for a free admission scholarship?</p>
+                    <div className="flex gap-4 mt-2">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="radio"
+                          name="scholarshipQualifies"
+                          value="yes"
+                          checked={scholarshipQualifies === true}
+                          onChange={() => setScholarshipQualifies(true)}
+                          className="text-aqua-700"
+                        />
+                        Yes
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="radio"
+                          name="scholarshipQualifies"
+                          value="no"
+                          checked={scholarshipQualifies === false}
+                          onChange={() => {
+                            setScholarshipQualifies(false);
+                            setScholarshipQualificationsSelected([]);
+                          }}
+                          className="text-aqua-700"
+                        />
+                        No
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Qualification checklist — shown when "Yes" selected */}
+                  {scholarshipQualifies === true && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                      <p className="text-sm font-medium text-amber-900">{s("scholarship_qualification_question", "Please select all criteria that apply to your group:")}</p>
+                      <div className="space-y-1.5">
+                        {scholarshipQualificationOptions.map((opt) => (
+                          <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-aqua-700"
+                              checked={scholarshipQualificationsSelected.includes(opt)}
+                              onChange={(e) => {
+                                setScholarshipQualificationsSelected((prev) =>
+                                  e.target.checked ? [...prev, opt] : prev.filter((v) => v !== opt)
+                                );
+                              }}
+                            />
+                            {opt}
+                          </label>
+                        ))}
+                      </div>
+                      {errors.scholarshipQualifications && (
+                        <p className="error-message">{errors.scholarshipQualifications.message}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Transportation reimbursement — only if enabled and scholarship path */}
+                  {transportationReimbEnabled && scholarshipQualifies === true && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                      <p className="text-sm font-medium text-blue-900">Transportation Reimbursement</p>
+                      <p className="text-xs text-blue-700">The Seattle Aquarium may offer transportation reimbursement assistance for qualifying groups.</p>
+                      <div className="flex gap-4 mt-2">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="radio"
+                            name="transportationRequested"
+                            value="yes"
+                            checked={transportationRequested === true}
+                            onChange={() => setTransportationRequested(true)}
+                            className="text-aqua-700"
+                          />
+                          Yes, we would benefit from reimbursement assistance
+                        </label>
+                      </div>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="radio"
+                            name="transportationRequested"
+                            value="no"
+                            checked={transportationRequested === false}
+                            onChange={() => setTransportationRequested(false)}
+                            className="text-aqua-700"
+                          />
+                          No, we don't need reimbursement
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-between mt-6">
+                  <button onClick={() => setStep(4)} className="btn-secondary">Back</button>
+                  <button
+                    onClick={async () => {
+                      const fieldsToValidate: Parameters<typeof trigger>[0] = [
+                        ...(scholarshipQualifies === true ? (["scholarshipQualifications"] as any) : []),
+                      ];
+                      const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
+                      if (valid) setStep(6);
+                    }}
+                    className="btn-primary"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 6: Class Selection */}
+            {step === 6 && (() => {
               const selectedClassId = watch("classOfferingId");
               const selectedTimeSlot = watch("classTimeSlot" as any) as string | undefined;
 
@@ -945,7 +1330,7 @@ export default function BookingFlow() {
                   <p className="text-gray-600 text-sm mb-6">{classStepDescription}</p>
                   <div className="space-y-3 mb-6">
                     <button
-                      onClick={() => { setValue("classOfferingId", undefined); (setValue as any)("classTimeSlot", undefined); setStep(5); }}
+                      onClick={() => { setValue("classOfferingId", undefined); (setValue as any)("classTimeSlot", undefined); setStep(7); }}
                       className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${
                         !selectedClassId ? "border-aqua-700 bg-aqua-50" : "border-gray-200 hover:border-aqua-400"
                       }`}
@@ -955,7 +1340,6 @@ export default function BookingFlow() {
 
                     {classesData?.map((cls) => {
                       const isSelected = selectedClassId === cls.id;
-                      // Use live availability from API (respects arrival buffer, capacity, break rules)
                       const availEntry = classAvailability?.find((a) => a.classOfferingId === cls.id);
                       const slots = availEntry?.availableSlots ?? [];
                       const slotsLoaded = !!classAvailability;
@@ -973,7 +1357,6 @@ export default function BookingFlow() {
                             </div>
                           </button>
 
-                          {/* Time slot picker — always shown when class is selected */}
                           {isSelected && (
                             <div className="px-4 pb-4 border-t border-aqua-100 pt-3">
                               <p className="text-sm font-medium text-gray-800 mb-2">
@@ -991,7 +1374,7 @@ export default function BookingFlow() {
                                     <button
                                       key={slot}
                                       type="button"
-                                      onClick={() => { (setValue as any)("classTimeSlot", slot); setStep(5); }}
+                                      onClick={() => { (setValue as any)("classTimeSlot", slot); setStep(7); }}
                                       className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
                                         selectedTimeSlot === slot
                                           ? "border-aqua-700 bg-aqua-700 text-white"
@@ -1010,14 +1393,14 @@ export default function BookingFlow() {
                     })}
                   </div>
                   <div className="flex justify-between">
-                    <button onClick={() => setStep(3)} className="btn-secondary">Back</button>
+                    <button onClick={() => setStep(5)} className="btn-secondary">Back</button>
                   </div>
                 </div>
               );
             })()}
 
-            {/* Step 5: Review & Submit */}
-            {step === 5 && (
+            {/* Step 7: Review & Submit */}
+            {step === 7 && (
               <div>
                 <h2 className="text-xl font-semibold mb-6">Review & Confirm</h2>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm mb-6">
@@ -1049,6 +1432,12 @@ export default function BookingFlow() {
                       <span className="font-medium">{watch("dayOfContactPhone")}</span>
                     </div>
                   )}
+                  {watch("dayOfContactEmail" as any) && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Day-of-Visit Email</span>
+                      <span className="font-medium">{watch("dayOfContactEmail" as any)}</span>
+                    </div>
+                  )}
                   {watch("addressStreet1") && (
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-600 shrink-0">Address</span>
@@ -1077,7 +1466,9 @@ export default function BookingFlow() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Billing</span>
                     <span className="font-medium">
-                      {paymentMethodOptions.find((o) => o.value === watch("paymentMethod"))?.label ?? watch("paymentMethod")}
+                      {scholarshipQualifies === true
+                        ? "Scholarship (applying)"
+                        : (paymentMethodOptions.find((o) => o.value === watch("paymentMethod"))?.label ?? watch("paymentMethod"))}
                     </span>
                   </div>
                   {watch("classOfferingId") && (
@@ -1086,6 +1477,31 @@ export default function BookingFlow() {
                       <span className="font-medium">
                         {classesData?.find((c) => c.id === watch("classOfferingId"))?.name ?? "Selected"}
                       </span>
+                    </div>
+                  )}
+                  {/* Accessibility summary */}
+                  {(accessibilityAccommodations.length > 0 || accessibilityMultilingual.length > 0) && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600 shrink-0">Accessibility</span>
+                      <span className="font-medium text-right text-amber-700">
+                        {[
+                          accessibilityAccommodations.length > 0 ? `${accessibilityAccommodations.length} accommodation${accessibilityAccommodations.length !== 1 ? "s" : ""}` : null,
+                          accessibilityMultilingual.length > 0 ? `${accessibilityMultilingual.length} multilingual request${accessibilityMultilingual.length !== 1 ? "s" : ""}` : null,
+                        ].filter(Boolean).join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {/* Scholarship summary */}
+                  {scholarshipQualifies === true && scholarshipQualificationsSelected.length > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600 shrink-0">Scholarship criteria</span>
+                      <span className="font-medium text-right text-sm">{scholarshipQualificationsSelected.length} selected</span>
+                    </div>
+                  )}
+                  {transportationRequested && scholarshipQualifies === true && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Transportation reimbursement</span>
+                      <span className="font-medium text-blue-700">Requested</span>
                     </div>
                   )}
                 </div>
@@ -1111,6 +1527,18 @@ export default function BookingFlow() {
                   )}
                 </div>
 
+                {/* hCaptcha widget */}
+                {hcaptchaSiteKey && (
+                  <div className="mb-6 flex justify-center">
+                    <HCaptcha
+                      ref={hcaptchaRef}
+                      sitekey={hcaptchaSiteKey}
+                      onVerify={(token) => setHcaptchaToken(token)}
+                      onExpire={() => setHcaptchaToken(null)}
+                    />
+                  </div>
+                )}
+
                 {(clientValidationError || serverError) && (
                   <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                     <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -1124,7 +1552,7 @@ export default function BookingFlow() {
                 )}
 
                 <div className="flex justify-between">
-                  <button onClick={() => setStep(4)} className="btn-secondary">Back</button>
+                  <button onClick={() => setStep(6)} className="btn-secondary">Back</button>
                   <button
                     onClick={onSubmit}
                     className="btn-primary"

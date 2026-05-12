@@ -105,6 +105,10 @@ model Booking {
   contactPhone        String
   dayOfContactName    String?
   dayOfContactPhone   String?
+  dayOfContactEmail   String?   // encrypted PII
+  dayOfContactRole    String?
+  accessibilityData   String?   // JSON blob for structured accessibility answers
+  transportationReimbursementRequested Boolean @default(false)
 
   gradeLevels        String[]
   gradeStudentCounts String?  // JSON map: { "3rd Grade": 20, "10th Grade": 15 }
@@ -220,10 +224,11 @@ model ScholarshipApplication {
   bookingId String   @unique
   status    ScholarshipStatus @default(SUBMITTED)
 
-  titleOneStatus  Boolean
-  enrollmentCount Int
+  titleOneStatus  Boolean @default(false)
+  enrollmentCount Int     @default(0)
   qualifyingInfo  String?
   qualifyingDocumentPath String? // filesystem path, never public URL
+  scholarshipQualifications String[]
 
   reviewedById String?
   reviewedAt   DateTime?

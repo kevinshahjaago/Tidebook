@@ -458,7 +458,7 @@ type SettingMeta = {
   type: "number" | "text" | "url" | "textarea" | "time" | "richtext";
 };
 
-type SectionKey = string | "__group_type_options__" | "__payment_method_options__" | "__accessibility_options__" | "__booking_portal_toggle__";
+type SectionKey = string | "__group_type_options__" | "__payment_method_options__" | "__accessibility_options__" | "__booking_portal_toggle__" | "__accessibility_accommodations_options__" | "__accessibility_multilingual_options__" | "__accessibility_multilingual_languages__" | "__scholarship_qualifications__" | "__transportation_reimbursement_toggle__";
 
 type Section = {
   heading: string;
@@ -627,6 +627,51 @@ const SETTING_META: Record<string, SettingMeta> = {
     hint: "Shown at the bottom of every booking form step. Supports **bold**, *italic*, and [links](url). Use this for your registrar email and response-time notice.",
     type: "richtext",
   },
+  accessibility_intro_header: {
+    label: "Accessibility page — heading",
+    hint: "The heading shown at the top of the accessibility step on the booking form.",
+    type: "text",
+  },
+  accessibility_intro_body: {
+    label: "Accessibility page — intro text",
+    hint: "A short paragraph explaining the accessibility options available. Supports **bold**, *italic*, and links.",
+    type: "richtext",
+  },
+  accessibility_accommodations_question: {
+    label: "Accommodations question text",
+    hint: "The question shown above the accommodations checklist on the booking form.",
+    type: "text",
+  },
+  accessibility_multilingual_question: {
+    label: "Multilingual support question text",
+    hint: "The question shown above the multilingual support checklist on the booking form.",
+    type: "text",
+  },
+  accessibility_subtext: {
+    label: "Accessibility page — footer note",
+    hint: "A note shown below the accessibility questions. Supports **bold**, *italic*, and links.",
+    type: "richtext",
+  },
+  scholarship_header: {
+    label: "Scholarship page — heading",
+    hint: "The heading shown at the top of the scholarship eligibility step.",
+    type: "text",
+  },
+  scholarship_requirements_body: {
+    label: "Scholarship requirements — description",
+    hint: "A paragraph describing scholarship eligibility. Supports **bold**, *italic*, and links.",
+    type: "richtext",
+  },
+  scholarship_qualification_question: {
+    label: "Scholarship qualifications — question text",
+    hint: "The question shown above the scholarship qualifications checklist.",
+    type: "text",
+  },
+  transportation_reimbursement_budget: {
+    label: "Transportation reimbursement budget ($)",
+    hint: "Total budget available for transportation reimbursement this season. Used for internal tracking.",
+    type: "number",
+  },
 };
 
 const SECTIONS: Section[] = [
@@ -661,8 +706,37 @@ const SECTIONS: Section[] = [
   },
   {
     heading: "Accessibility & Special Requests",
-    description: "Customize the accessibility checklist guests see when booking, and configure the special requests field.",
+    description: "Customize the legacy accessibility checklist guests see when booking, and configure the special requests field.",
     keys: ["__accessibility_options__", "booking_special_requests_label"],
+  },
+  {
+    heading: "Accessibility & Multilingual Support",
+    description: "Customize the accessibility questions and options shown to guests during booking.",
+    keys: [
+      "accessibility_intro_header",
+      "accessibility_intro_body",
+      "accessibility_accommodations_question",
+      "__accessibility_accommodations_options__",
+      "accessibility_multilingual_question",
+      "__accessibility_multilingual_options__",
+      "__accessibility_multilingual_languages__",
+      "accessibility_subtext",
+    ],
+  },
+  {
+    heading: "Scholarship Program",
+    description: "Configure the scholarship eligibility question and qualification criteria shown to guests.",
+    keys: [
+      "scholarship_header",
+      "scholarship_requirements_body",
+      "scholarship_qualification_question",
+      "__scholarship_qualifications__",
+    ],
+  },
+  {
+    heading: "Transportation Reimbursement",
+    description: "Enable and configure transportation reimbursement tracking for scholarship recipients.",
+    keys: ["__transportation_reimbursement_toggle__", "transportation_reimbursement_budget"],
   },
   {
     heading: "Arrival Times & Scheduling",
@@ -806,6 +880,118 @@ export default function AdminSettings() {
                       <div className={`mt-3 text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1.5 ${enabled ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${enabled ? "bg-green-500" : "bg-red-500"}`} />
                         {enabled ? "Portal is open — guests can book" : "Portal is closed — guests see your message"}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Special: accessibility accommodations options editor
+                if (key === "__accessibility_accommodations_options__") {
+                  return (
+                    <div key="accessibility_accommodations_options" className="card">
+                      <div className="mb-3">
+                        <p className="font-medium text-sm text-gray-900">Accommodation options</p>
+                        <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                          These appear as checkboxes on the accessibility step. Include "Other" to show a free-text field.
+                        </p>
+                      </div>
+                      <AccessibilityOptionsEditor
+                        initialJson={settingsMap.get("accessibility_accommodations_options") ?? "[]"}
+                        onSave={(json) => updateMutation.mutate({ key: "accessibility_accommodations_options", value: json })}
+                        isSaving={updateMutation.isPending}
+                      />
+                    </div>
+                  );
+                }
+
+                // Special: multilingual support options editor
+                if (key === "__accessibility_multilingual_options__") {
+                  return (
+                    <div key="accessibility_multilingual_options" className="card">
+                      <div className="mb-3">
+                        <p className="font-medium text-sm text-gray-900">Multilingual support options</p>
+                        <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                          These appear as checkboxes on the multilingual support question. Include "Other" to show a free-text field.
+                        </p>
+                      </div>
+                      <AccessibilityOptionsEditor
+                        initialJson={settingsMap.get("accessibility_multilingual_options") ?? "[]"}
+                        onSave={(json) => updateMutation.mutate({ key: "accessibility_multilingual_options", value: json })}
+                        isSaving={updateMutation.isPending}
+                      />
+                    </div>
+                  );
+                }
+
+                // Special: multilingual languages list editor
+                if (key === "__accessibility_multilingual_languages__") {
+                  return (
+                    <div key="accessibility_multilingual_languages" className="card">
+                      <div className="mb-3">
+                        <p className="font-medium text-sm text-gray-900">Available languages</p>
+                        <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                          The language choices shown when a guest selects a multilingual support option.
+                        </p>
+                      </div>
+                      <AccessibilityOptionsEditor
+                        initialJson={settingsMap.get("accessibility_multilingual_languages") ?? "[]"}
+                        onSave={(json) => updateMutation.mutate({ key: "accessibility_multilingual_languages", value: json })}
+                        isSaving={updateMutation.isPending}
+                      />
+                    </div>
+                  );
+                }
+
+                // Special: scholarship qualifications list editor
+                if (key === "__scholarship_qualifications__") {
+                  return (
+                    <div key="scholarship_qualifications" className="card">
+                      <div className="mb-3">
+                        <p className="font-medium text-sm text-gray-900">Scholarship qualification criteria</p>
+                        <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                          These appear as checkboxes on the scholarship eligibility step. Guests must select at least one.
+                        </p>
+                      </div>
+                      <AccessibilityOptionsEditor
+                        initialJson={settingsMap.get("scholarship_qualifications") ?? "[]"}
+                        onSave={(json) => updateMutation.mutate({ key: "scholarship_qualifications", value: json })}
+                        isSaving={updateMutation.isPending}
+                      />
+                    </div>
+                  );
+                }
+
+                // Special: transportation reimbursement toggle
+                if (key === "__transportation_reimbursement_toggle__") {
+                  const enabled = settingsMap.get("transportation_reimbursement_enabled") === "true";
+                  return (
+                    <div key="transportation_reimbursement_toggle" className="card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm text-gray-900">Transportation reimbursement</p>
+                          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                            When on, scholarship applicants are asked if they would like transportation reimbursement assistance.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateMutation.mutate({ key: "transportation_reimbursement_enabled", value: enabled ? "false" : "true" })}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            enabled ? "bg-aqua-700" : "bg-gray-300"
+                          }`}
+                          aria-checked={enabled}
+                          role="switch"
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                              enabled ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <div className={`mt-3 text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1.5 ${enabled ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${enabled ? "bg-green-500" : "bg-gray-400"}`} />
+                        {enabled ? "Transportation reimbursement is enabled" : "Transportation reimbursement is disabled"}
                       </div>
                     </div>
                   );

@@ -384,6 +384,23 @@ async function main() {
       "Sensory-friendly accommodations",
       "Visual impairment assistance",
     ]) },
+    // ── Accessibility & Multilingual Support ───────────────────────────────────
+    { key: "accessibility_intro_header", value: "Accessibility & Multilingual Support" },
+    { key: "accessibility_intro_body", value: "We are committed to making your visit accessible and inclusive. Please let us know what support your group needs so we can prepare." },
+    { key: "accessibility_accommodations_question", value: "Which of these accommodations would be helpful for any of your students?" },
+    { key: "accessibility_accommodations_options", value: JSON.stringify(["Private/quiet space", "High-capacity adult-sized changing table", "Tactile sensory tour", "Other"]) },
+    { key: "accessibility_multilingual_question", value: "Which of these accommodations are needed for multi-lingual support?" },
+    { key: "accessibility_multilingual_options", value: JSON.stringify(["Field guides with Puget Sound organisms", "Translators to stay with the group throughout visit", "Scavenger hunt", "Other"]) },
+    { key: "accessibility_multilingual_languages", value: JSON.stringify(["Spanish", "Mandarin Chinese", "Vietnamese", "Somali", "Tagalog", "Korean", "Russian", "Arabic", "Amharic", "Other"]) },
+    { key: "accessibility_subtext", value: "If you have specific accommodation needs not listed here, please contact us. We will do our best to prepare. Please note some accommodations require advance notice." },
+    // ── Scholarship Program ────────────────────────────────────────────────────
+    { key: "scholarship_header", value: "Scholarship Eligibility" },
+    { key: "scholarship_requirements_body", value: "The Seattle Aquarium offers free admission scholarships for qualifying groups. Scholarships are awarded based on demonstrated financial need and available funding." },
+    { key: "scholarship_qualification_question", value: "Please select all criteria that apply to your group:" },
+    { key: "scholarship_qualifications", value: JSON.stringify(["Title I school designation", "Free or reduced lunch program participation (>50%)", "Community-based organization serving low-income families", "Foster care agency or residential program", "Other qualifying circumstance (please describe in special requests)"]) },
+    // ── Transportation Reimbursement ───────────────────────────────────────────
+    { key: "transportation_reimbursement_enabled", value: "false" },
+    { key: "transportation_reimbursement_budget", value: "5000" },
   ];
 
   for (const setting of defaultSettings) {

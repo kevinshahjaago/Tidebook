@@ -39,7 +39,11 @@ const GRADE_OPTIONS = [
   "Pre-K", "Kindergarten", "1st Grade", "2nd Grade", "3rd Grade",
   "4th Grade", "5th Grade", "6th Grade", "7th Grade", "8th Grade",
   "9th Grade", "10th Grade", "11th Grade", "12th Grade",
+  "College/University",
 ];
+
+// College/University groups have no chaperone ratio requirement
+const NO_RATIO_GRADES = new Set(["College/University"]);
 
 type PaymentMethodOption = { value: string; label: string; description: string; emailInstructions: string; isVisible: boolean };
 
@@ -179,7 +183,7 @@ export default function BookingFlow() {
     .filter(([g]) => LOWER_GRADES.has(g))
     .reduce((s, [, n]) => s + n, 0);
   const upperGradeStudents = Object.entries(gradeCountMap)
-    .filter(([g]) => !LOWER_GRADES.has(g))
+    .filter(([g]) => !LOWER_GRADES.has(g) && !NO_RATIO_GRADES.has(g))
     .reduce((s, [, n]) => s + n, 0);
 
   const minChaperones = isSchoolGroup
@@ -439,6 +443,7 @@ export default function BookingFlow() {
                       {GRADE_OPTIONS.map((grade) => {
                         const isChecked = grade in gradeCountMap;
                         const isLower = LOWER_GRADES.has(grade);
+                        const isNoRatio = NO_RATIO_GRADES.has(grade);
                         return (
                           <div
                             key={grade}
@@ -472,8 +477,8 @@ export default function BookingFlow() {
                                 setGradeCountMap((prev) => ({ ...prev, [grade]: val }));
                               }}
                             />
-                            <span className={`hidden sm:block text-xs w-28 text-right pr-1 ${isChecked ? (isLower ? "text-amber-700" : "text-blue-700") : "text-gray-300"}`}>
-                              1 per {isLower ? ratioLower : ratioUpper} students
+                            <span className={`hidden sm:block text-xs w-40 text-right pr-1 ${isChecked ? (isNoRatio ? "text-gray-500" : isLower ? "text-amber-700" : "text-blue-700") : "text-gray-300"}`}>
+                              {isNoRatio ? "No ratio required" : `1 per ${isLower ? ratioLower : ratioUpper} students`}
                             </span>
                           </div>
                         );
@@ -483,26 +488,38 @@ export default function BookingFlow() {
                     {errors.studentCount && <p className="error-message">{errors.studentCount.message}</p>}
 
                     {/* Running totals */}
-                    {(lowerGradeStudents > 0 || upperGradeStudents > 0) && (
-                      <div className="mt-3 rounded-lg bg-aqua-50 border border-aqua-200 p-3 text-sm space-y-1">
-                        {lowerGradeStudents > 0 && (
-                          <div className="flex justify-between text-amber-800">
-                            <span>Pre-K – 8th grade ({lowerGradeStudents} students)</span>
-                            <span className="font-medium">→ {Math.ceil(lowerGradeStudents / ratioLower)} chaperone{Math.ceil(lowerGradeStudents / ratioLower) !== 1 ? "s" : ""}</span>
+                    {(() => {
+                      const collegeStudents = Object.entries(gradeCountMap)
+                        .filter(([g]) => NO_RATIO_GRADES.has(g))
+                        .reduce((s, [, n]) => s + n, 0);
+                      const totalStudents = lowerGradeStudents + upperGradeStudents + collegeStudents;
+                      return totalStudents > 0 ? (
+                        <div className="mt-3 rounded-lg bg-aqua-50 border border-aqua-200 p-3 text-sm space-y-1">
+                          {lowerGradeStudents > 0 && (
+                            <div className="flex justify-between text-amber-800">
+                              <span>Pre-K – 8th grade ({lowerGradeStudents} students)</span>
+                              <span className="font-medium">→ {Math.ceil(lowerGradeStudents / ratioLower)} chaperone{Math.ceil(lowerGradeStudents / ratioLower) !== 1 ? "s" : ""}</span>
+                            </div>
+                          )}
+                          {upperGradeStudents > 0 && (
+                            <div className="flex justify-between text-blue-800">
+                              <span>9th – 12th grade ({upperGradeStudents} students)</span>
+                              <span className="font-medium">→ {Math.ceil(upperGradeStudents / ratioUpper)} chaperone{Math.ceil(upperGradeStudents / ratioUpper) !== 1 ? "s" : ""}</span>
+                            </div>
+                          )}
+                          {collegeStudents > 0 && (
+                            <div className="flex justify-between text-gray-600">
+                              <span>College/University ({collegeStudents} students)</span>
+                              <span className="font-medium">No ratio required</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-semibold text-aqua-900 pt-1 border-t border-aqua-200">
+                            <span>Total: {totalStudents} students</span>
+                            <span>{minChaperones} chaperone{minChaperones !== 1 ? "s" : ""} required</span>
                           </div>
-                        )}
-                        {upperGradeStudents > 0 && (
-                          <div className="flex justify-between text-blue-800">
-                            <span>9th – 12th grade ({upperGradeStudents} students)</span>
-                            <span className="font-medium">→ {Math.ceil(upperGradeStudents / ratioUpper)} chaperone{Math.ceil(upperGradeStudents / ratioUpper) !== 1 ? "s" : ""}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-semibold text-aqua-900 pt-1 border-t border-aqua-200">
-                          <span>Total: {lowerGradeStudents + upperGradeStudents} students</span>
-                          <span>{minChaperones} chaperone{minChaperones !== 1 ? "s" : ""} required</span>
                         </div>
-                      </div>
-                    )}
+                      ) : null;
+                    })()}
                   </div>
                 )}
 

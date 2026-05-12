@@ -112,6 +112,18 @@ export const createBookingSchema = z.object({
         .max(2000, "Please keep this under 2,000 characters"),
     })
     .optional(),
+}).superRefine((data, ctx) => {
+  if (data.groupType !== GroupType.HOMESCHOOL) {
+    if (!data.addressStreet1?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["addressStreet1"], message: "Please enter your street address" });
+    }
+    if (!data.addressCity?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["addressCity"], message: "Please enter your city" });
+    }
+    if (!data.addressZip?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["addressZip"], message: "Please enter your ZIP code" });
+    }
+  }
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;

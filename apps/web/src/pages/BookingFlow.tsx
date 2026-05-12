@@ -646,14 +646,32 @@ export default function BookingFlow() {
                     <p className="text-xs text-gray-500 mt-1">{s("booking_school_district_hint", "Enter N/A for private schools, home schools, & colleges/universities.")}</p>
                   </div>
                   <div className="space-y-2">
-                    <label className="label">School / Organization Address</label>
-                    <input className="input" placeholder="Street address" {...form.register("addressStreet1")} />
+                    <label className="label">
+                      School / Organization Address{groupType !== GroupType.HOMESCHOOL ? " (required)" : ""}
+                    </label>
+                    <input
+                      className={`input ${errors.addressStreet1 ? "input-error" : ""}`}
+                      placeholder="Street address"
+                      {...form.register("addressStreet1")}
+                    />
+                    {errors.addressStreet1 && <p className="error-message">{errors.addressStreet1.message}</p>}
                     <input className="input" placeholder="Apt, Suite, Bldg (optional)" {...form.register("addressStreet2")} />
                     <div className="grid grid-cols-2 sm:grid-cols-[1fr_80px_100px] gap-2">
-                      <input className="input col-span-2 sm:col-span-1" placeholder="City" {...form.register("addressCity")} />
+                      <input
+                        className={`input col-span-2 sm:col-span-1 ${errors.addressCity ? "input-error" : ""}`}
+                        placeholder="City"
+                        {...form.register("addressCity")}
+                      />
                       <input className="input uppercase" maxLength={2} placeholder="State" {...form.register("addressState")} />
-                      <input className="input" placeholder="ZIP" {...form.register("addressZip")} />
+                      <input
+                        className={`input ${errors.addressZip ? "input-error" : ""}`}
+                        placeholder="ZIP"
+                        {...form.register("addressZip")}
+                      />
                     </div>
+                    {(errors.addressCity || errors.addressZip) && (
+                      <p className="error-message">{errors.addressCity?.message ?? errors.addressZip?.message}</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -834,6 +852,7 @@ export default function BookingFlow() {
                       const fieldsToValidate: Parameters<typeof trigger>[0] = [
                         "organizationName", "contactName", "contactPhone", "contactEmail",
                         "paymentMethod",
+                        "addressStreet1", "addressCity", "addressZip",
                         // gradeLevels only validated here for non-school groups (school/homeschool already did it in step 2)
                         ...(!isSchoolGroup ? (["gradeLevels"] as any) : []),
                         ...(paymentMethod === PaymentMethod.SCHOLARSHIP

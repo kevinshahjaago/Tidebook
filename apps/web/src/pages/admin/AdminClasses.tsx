@@ -68,19 +68,19 @@ export default function AdminClasses() {
       </div>
       <div>
         <label className="label text-xs">Youngest grade served</label>
-        <input type="number" className="input text-sm" value={form.gradeMin} onChange={(e) => setForm((f) => ({ ...f, gradeMin: +e.target.value }))} />
+        <input type="number" className="input text-sm" value={form.gradeMin} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setForm((f) => ({ ...f, gradeMin: +e.target.value }))} />
       </div>
       <div>
         <label className="label text-xs">Oldest grade served</label>
-        <input type="number" className="input text-sm" value={form.gradeMax} onChange={(e) => setForm((f) => ({ ...f, gradeMax: +e.target.value }))} />
+        <input type="number" className="input text-sm" value={form.gradeMax} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setForm((f) => ({ ...f, gradeMax: +e.target.value }))} />
       </div>
       <div>
         <label className="label text-xs">Maximum students per session</label>
-        <input type="number" className="input text-sm" value={form.capacity} onChange={(e) => setForm((f) => ({ ...f, capacity: +e.target.value }))} />
+        <input type="number" className="input text-sm" value={form.capacity} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setForm((f) => ({ ...f, capacity: +e.target.value }))} />
       </div>
       <div>
         <label className="label text-xs">Program length (minutes)</label>
-        <input type="number" className="input text-sm" value={form.durationMinutes} onChange={(e) => setForm((f) => ({ ...f, durationMinutes: +e.target.value }))} />
+        <input type="number" className="input text-sm" value={form.durationMinutes} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setForm((f) => ({ ...f, durationMinutes: +e.target.value }))} />
       </div>
       <div className="col-span-2">
         <label className="label text-xs">What you'll need (staff, equipment, space)</label>

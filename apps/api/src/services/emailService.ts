@@ -94,7 +94,7 @@ export async function sendEmailForBooking(
 export async function scheduleEmailTriggers(
   bookingId: string,
   status: string,
-  visitDate: string,
+  visitDate = "",
   rescheduleToken?: string
 ): Promise<void> {
   const booking = await prisma.booking.findUnique({
@@ -189,6 +189,11 @@ export async function scheduleEmailTriggers(
       reimbursementLink: busReimbSetting?.value ?? variables.reimbursementLink,
     });
   }
+}
+
+// Send a single email by trigger type for a booking (used by journey service)
+export async function sendEmailByTrigger(triggerType: EmailTriggerType, bookingId: string): Promise<void> {
+  await scheduleEmailTriggers(bookingId, triggerType as string);
 }
 
 export async function sendReminderEmails(): Promise<void> {

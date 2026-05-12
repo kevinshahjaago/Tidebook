@@ -225,6 +225,7 @@ export default function AdminCapacity() {
                     type="number"
                     className="input text-sm mt-1 w-full"
                     value={editForm.capacityLimit}
+                    onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) => setEditForm((f) => ({ ...f, capacityLimit: e.target.value }))}
                     placeholder={String(defaultCapacity)}
                   />

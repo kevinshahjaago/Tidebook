@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, EmailTriggerType } from "@prisma/client";
+import { PrismaClient, UserRole, EmailTriggerType, JourneyTrigger } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
@@ -401,6 +401,9 @@ async function main() {
     // ── Transportation Reimbursement ───────────────────────────────────────────
     { key: "transportation_reimbursement_enabled", value: "false" },
     { key: "transportation_reimbursement_budget", value: "5000" },
+    // ── Analytics / Revenue ────────────────────────────────────────────────────
+    { key: "per_student_revenue", value: "0" },
+    { key: "transportation_budget_per_season", value: "0" },
   ];
 
   for (const setting of defaultSettings) {
@@ -411,6 +414,71 @@ async function main() {
     });
   }
   console.log("Upserted app settings");
+
+  // Default Email Journeys
+  const defaultJourneys: Array<{
+    name: string;
+    description: string;
+    trigger: JourneyTrigger;
+    sortOrder: number;
+    steps: object[];
+  }> = [
+    {
+      name: "Booking Submitted",
+      description: "Sends a confirmation email when a group submits a visit request.",
+      trigger: JourneyTrigger.BOOKING_SUBMITTED,
+      sortOrder: 1,
+      steps: [
+        { id: "submitted-pending-review", type: "send_email", templateType: EmailTriggerType.BOOKING_PENDING_REVIEW, timing: { type: "immediately" } },
+      ],
+    },
+    {
+      name: "Booking Confirmed",
+      description: "Sends confirmation and a 14-day reminder when a visit is confirmed.",
+      trigger: JourneyTrigger.BOOKING_CONFIRMED,
+      sortOrder: 2,
+      steps: [
+        { id: "confirmed-email", type: "send_email", templateType: EmailTriggerType.BOOKING_CONFIRMED_STANDARD, timing: { type: "immediately" } },
+        { id: "confirmed-reminder-14", type: "send_email", templateType: EmailTriggerType.REMINDER_14_DAYS, timing: { type: "days_before_visit", days: 14 } },
+        { id: "confirmed-survey", type: "send_email", templateType: EmailTriggerType.POST_VISIT_SURVEY, timing: { type: "days_after_trigger", days: 2 } },
+      ],
+    },
+    {
+      name: "Booking Declined",
+      description: "Notifies the group when their visit request is declined.",
+      trigger: JourneyTrigger.BOOKING_DECLINED,
+      sortOrder: 3,
+      steps: [
+        { id: "declined-email", type: "send_email", templateType: EmailTriggerType.BOOKING_DECLINED, timing: { type: "immediately" } },
+      ],
+    },
+    {
+      name: "Rescheduled by Staff",
+      description: "Sends updated visit details when a staff member reschedules a visit.",
+      trigger: JourneyTrigger.BOOKING_RESCHEDULED_BY_ADMIN,
+      sortOrder: 4,
+      steps: [
+        { id: "reschedule-admin-complete", type: "send_email", templateType: EmailTriggerType.RESCHEDULE_COMPLETED, timing: { type: "immediately" } },
+      ],
+    },
+    {
+      name: "Rescheduled by Group",
+      description: "Acknowledges when a group self-reschedules via the portal.",
+      trigger: JourneyTrigger.BOOKING_RESCHEDULED_BY_BOOKER,
+      sortOrder: 5,
+      steps: [
+        { id: "reschedule-booker-pending", type: "send_email", templateType: EmailTriggerType.RESCHEDULE_PENDING_REVIEW, timing: { type: "immediately" } },
+      ],
+    },
+  ];
+
+  for (const journey of defaultJourneys) {
+    const existing = await prisma.emailJourney.findFirst({ where: { trigger: journey.trigger } });
+    if (!existing) {
+      await prisma.emailJourney.create({ data: { ...journey, steps: journey.steps as any } });
+      console.log(`Created email journey: ${journey.name}`);
+    }
+  }
 
   console.log("Seed complete.");
 }

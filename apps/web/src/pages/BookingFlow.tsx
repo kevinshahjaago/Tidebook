@@ -13,13 +13,13 @@ import {
   ClassOffering,
   CreateBookingInput,
 } from "@tidebook/shared";
-import { AlertCircle, Fish, Clock } from "lucide-react";
+import { AlertCircle, Clock } from "lucide-react";
 import { AxiosError } from "axios";
 import { format, parseISO } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 type GroupTypeOption = { value: string; label: string; description: string };
 
 function formatTimeSlot(time: string): string {
@@ -293,8 +293,6 @@ export default function BookingFlow() {
 
   const transportationReimbEnabled = s("transportation_reimbursement_enabled", "false") === "true";
 
-  const specialRequestsLabel = s("booking_special_requests_label", "Special Requests");
-
   const cocUrl = s("code_of_conduct_url", "https://seattleaquarium.org/wp-content/uploads/2024/09/Seattle-Aquarium-Field-Trip-Code-of-Conduct-2024-25.pdf");
   const formSubtitle = s("booking_form_subtitle", "School & Public Programs — Group Visit Registration");
   const connectionsNotice = s("booking_connections_notice", "Connections Partners (nonprofits, YMCAs, community centers) should use the Connections Partner portal.");
@@ -318,7 +316,7 @@ export default function BookingFlow() {
         "/public/classes/availability",
         { params: { date: visitDate, arrivalTimeSlot } }
       ).then((r) => r.data.availability),
-    enabled: !!visitDate && !!arrivalTimeSlot && step === 6,
+    enabled: !!visitDate && !!arrivalTimeSlot && step === 7,
     staleTime: 60_000,
   });
 
@@ -382,15 +380,14 @@ export default function BookingFlow() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen py-8 px-4" style={{ background: "linear-gradient(160deg, #002A36 0%, #005568 55%, #0083A0 100%)" }}>
+      <div className="min-h-screen py-8 px-4" style={{ background: "linear-gradient(160deg, #071929 0%, #103A69 55%, #1A63B0 100%)" }}>
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <Fish className="h-8 w-8 text-white" />
-              <h1 className="text-2xl font-bold text-white">Seattle Aquarium</h1>
+            <div className="flex items-center justify-center gap-4 mb-3">
+              <img src="/sa-logo.png" alt="Seattle Aquarium" className="h-16 w-auto object-contain drop-shadow-md" style={{ filter: "brightness(0) invert(1)" }} />
             </div>
-            <p className="text-aqua-100">{formSubtitle}</p>
+            <p className="text-aqua-200 text-sm font-medium">{formSubtitle}</p>
           </div>
 
           {/* Portal closed banner */}
@@ -429,7 +426,7 @@ export default function BookingFlow() {
           {portalEnabled && (
           <>
           <div className="flex items-center justify-center gap-2 mb-8">
-            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
               <div
                 key={s}
                 className={`h-2 rounded-full transition-all ${
@@ -440,7 +437,7 @@ export default function BookingFlow() {
           </div>
 
           {/* Slot hold countdown banner — shown from step 3 onwards */}
-          {holdExpiresAt && !holdExpired && step >= 3 && (
+          {holdExpiresAt && !holdExpired && step >= 3 && step < 8 && (
             <div className={`flex items-center gap-3 rounded-lg px-4 py-3 mb-4 text-sm ${
               holdSecondsLeft <= 120 ? "bg-amber-100 border border-amber-300 text-amber-900" : "bg-aqua-900/80 border border-aqua-600 text-white"
             }`}>
@@ -480,7 +477,7 @@ export default function BookingFlow() {
                     <button
                       key={opt.value}
                       onClick={() => {
-                        setValue("groupType", opt.value as GroupType);
+                        setValue("groupType", opt.value as any);
                         setStep(2);
                       }}
                       className={`p-4 text-left rounded-lg border-2 transition-colors ${
@@ -880,100 +877,16 @@ export default function BookingFlow() {
                     </div>
                   )}
 
-                  {specialRequestsLabel && (
-                    <div>
-                      <label className="label">{specialRequestsLabel}</label>
-                      <textarea
-                        rows={2}
-                        className={`input ${errors.specialRequests ? "input-error" : ""}`}
-                        placeholder="Parking, lunch space, etc. — or leave blank if none"
-                        {...form.register("specialRequests")}
-                      />
-                      {errors.specialRequests && <p className="error-message">{errors.specialRequests.message}</p>}
-                    </div>
-                  )}
-
-                  {/* Payment Method — last field */}
+                  {/* Optional group notes */}
                   <div>
-                    <label className="label">Payment Method (required)</label>
-                    <div className="space-y-2 mt-1">
-                      {paymentMethodOptions.map((opt) => {
-                        const isSelected = paymentMethod === opt.value;
-                        return (
-                          <div key={opt.value}>
-                            <label
-                              className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                                isSelected
-                                  ? "border-aqua-700 bg-aqua-50"
-                                  : "border-gray-200 hover:border-aqua-300"
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                value={opt.value}
-                                className="mt-0.5 text-aqua-700"
-                                {...form.register("paymentMethod")}
-                              />
-                              <div>
-                                <span className="font-medium text-sm">{opt.label}</span>
-                                {opt.description && <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>}
-                              </div>
-                            </label>
-                            {/* Per-method subtext shown when selected */}
-                            {isSelected && opt.subtext && (
-                              <div className="ml-3 mt-1 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 prose prose-xs max-w-none">
-                                <ReactMarkdown>{opt.subtext}</ReactMarkdown>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {errors.paymentMethod && <p className="error-message mt-1">{errors.paymentMethod.message}</p>}
-
-                    {/* Global payment subtext */}
-                    {s("booking_payment_subtext", "") && (
-                      <div className="mt-3 text-xs text-gray-500 prose prose-xs max-w-none [&_strong]:text-gray-700 [&_a]:text-aqua-700">
-                        <ReactMarkdown>{s("booking_payment_subtext", "")}</ReactMarkdown>
-                      </div>
-                    )}
+                    <label className="label">Is there anything else you would like us to know about your group? <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <textarea
+                      rows={3}
+                      className="input"
+                      placeholder="Anything that will help us prepare for your visit"
+                      {...form.register("groupNotes")}
+                    />
                   </div>
-
-                  {/* Legacy scholarship sub-flow: still shown for SCHOLARSHIP payment method (old path) */}
-                  {paymentMethod === PaymentMethod.SCHOLARSHIP && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
-                      <h3 className="font-medium text-amber-900">Scholarship Information</h3>
-                      <p className="text-xs text-amber-700">You can also complete the scholarship section on the next step.</p>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" className="rounded" {...form.register("scholarship.titleOneStatus")} />
-                        My school qualifies as Title I
-                      </label>
-                      <div>
-                        <label className="label">Total School Enrollment (required)</label>
-                        <input
-                          type="number"
-                          className={`input ${errors.scholarship?.enrollmentCount ? "input-error" : ""}`}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          {...form.register("scholarship.enrollmentCount", { valueAsNumber: true })}
-                        />
-                        {errors.scholarship?.enrollmentCount && (
-                          <p className="error-message">{errors.scholarship.enrollmentCount.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="label">Additional qualifying information (required)</label>
-                        <textarea
-                          rows={3}
-                          className={`input ${errors.scholarship?.qualifyingInfo ? "input-error" : ""}`}
-                          placeholder="Describe your school's qualifying circumstances"
-                          {...form.register("scholarship.qualifyingInfo")}
-                        />
-                        {errors.scholarship?.qualifyingInfo && (
-                          <p className="error-message">{errors.scholarship.qualifyingInfo.message}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Contact footer */}
                   {s("booking_contact_footer", "") && (
@@ -992,16 +905,14 @@ export default function BookingFlow() {
                       const fieldsToValidate: Parameters<typeof trigger>[0] = [
                         "organizationName", "contactName", "contactPhone", "contactEmail",
                         "dayOfContactPhone", "dayOfContactEmail",
-                        "paymentMethod",
                         "addressStreet1", "addressCity", "addressZip",
-                        // gradeLevels only validated here for non-school groups (school/homeschool already did it in step 2)
                         ...(!isSchoolGroup ? (["gradeLevels"] as any) : []),
                         ...(paymentMethod === PaymentMethod.SCHOLARSHIP
                           ? (["scholarship.enrollmentCount", "scholarship.qualifyingInfo"] as any)
                           : []),
                       ];
                       const valid = await trigger(fieldsToValidate);
-                      if (valid) setStep(4);
+                      if (valid) setStep(4);  // → Accessibility
                     }}
                     className="btn-primary"
                   >
@@ -1309,7 +1220,7 @@ export default function BookingFlow() {
                         ...(scholarshipQualifies === true ? (["scholarshipQualifications"] as any) : []),
                       ];
                       const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
-                      if (valid) setStep(6);
+                      if (valid) setStep(6);  // → Payment
                     }}
                     className="btn-primary"
                   >
@@ -1319,8 +1230,73 @@ export default function BookingFlow() {
               </div>
             )}
 
-            {/* Step 6: Class Selection */}
-            {step === 6 && (() => {
+            {/* Step 6: Payment Method */}
+            {step === 6 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-2">Payment Method</h2>
+                <p className="text-gray-600 text-sm mb-6">How will your group be paying for the visit?</p>
+
+                <div className="space-y-2">
+                  {paymentMethodOptions.map((opt) => {
+                    const isSelected = paymentMethod === opt.value;
+                    return (
+                      <div key={opt.value}>
+                        <label
+                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                            isSelected ? "border-aqua-700 bg-aqua-50" : "border-gray-200 hover:border-aqua-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            value={opt.value}
+                            className="mt-0.5 text-aqua-700"
+                            {...form.register("paymentMethod")}
+                          />
+                          <div>
+                            <span className="font-medium text-sm">{opt.label}</span>
+                            {opt.description && <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>}
+                          </div>
+                        </label>
+                        {isSelected && opt.subtext && (
+                          <div className="ml-3 mt-1 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 prose prose-xs max-w-none">
+                            <ReactMarkdown>{opt.subtext}</ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {errors.paymentMethod && <p className="error-message mt-1">{errors.paymentMethod.message}</p>}
+
+                {s("booking_payment_subtext", "") && (
+                  <div className="mt-4 text-xs text-gray-500 prose prose-xs max-w-none [&_strong]:text-gray-700 [&_a]:text-aqua-700">
+                    <ReactMarkdown>{s("booking_payment_subtext", "")}</ReactMarkdown>
+                  </div>
+                )}
+
+                {s("booking_contact_footer", "") && (
+                  <div className="mt-4 text-xs text-gray-400 text-center prose prose-xs max-w-none [&_a]:text-aqua-600">
+                    <ReactMarkdown>{s("booking_contact_footer", "")}</ReactMarkdown>
+                  </div>
+                )}
+
+                <div className="flex justify-between mt-6">
+                  <button onClick={() => setStep(5)} className="btn-secondary">Back</button>
+                  <button
+                    onClick={async () => {
+                      const valid = await trigger(["paymentMethod"]);
+                      if (valid) setStep(7);  // → Classes
+                    }}
+                    className="btn-primary"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 7: Class Selection */}
+            {step === 7 && (() => {
               const selectedClassId = watch("classOfferingId");
               const selectedTimeSlot = watch("classTimeSlot" as any) as string | undefined;
 
@@ -1330,7 +1306,7 @@ export default function BookingFlow() {
                   <p className="text-gray-600 text-sm mb-6">{classStepDescription}</p>
                   <div className="space-y-3 mb-6">
                     <button
-                      onClick={() => { setValue("classOfferingId", undefined); (setValue as any)("classTimeSlot", undefined); setStep(7); }}
+                      onClick={() => { setValue("classOfferingId", undefined); (setValue as any)("classTimeSlot", undefined); setStep(8); }}
                       className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${
                         !selectedClassId ? "border-aqua-700 bg-aqua-50" : "border-gray-200 hover:border-aqua-400"
                       }`}
@@ -1374,7 +1350,7 @@ export default function BookingFlow() {
                                     <button
                                       key={slot}
                                       type="button"
-                                      onClick={() => { (setValue as any)("classTimeSlot", slot); setStep(7); }}
+                                      onClick={() => { (setValue as any)("classTimeSlot", slot); setStep(8); }}
                                       className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
                                         selectedTimeSlot === slot
                                           ? "border-aqua-700 bg-aqua-700 text-white"
@@ -1393,14 +1369,14 @@ export default function BookingFlow() {
                     })}
                   </div>
                   <div className="flex justify-between">
-                    <button onClick={() => setStep(5)} className="btn-secondary">Back</button>
+                    <button onClick={() => setStep(6)} className="btn-secondary">Back</button>
                   </div>
                 </div>
               );
             })()}
 
-            {/* Step 7: Review & Submit */}
-            {step === 7 && (
+            {/* Step 8: Review & Submit */}
+            {step === 8 && (
               <div>
                 <h2 className="text-xl font-semibold mb-6">Review & Confirm</h2>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm mb-6">
@@ -1504,6 +1480,12 @@ export default function BookingFlow() {
                       <span className="font-medium text-blue-700">Requested</span>
                     </div>
                   )}
+                  {watch("groupNotes" as any) && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600 shrink-0">Group notes</span>
+                      <span className="font-medium text-right text-sm">{watch("groupNotes" as any)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Code of Conduct */}
@@ -1552,7 +1534,7 @@ export default function BookingFlow() {
                 )}
 
                 <div className="flex justify-between">
-                  <button onClick={() => setStep(6)} className="btn-secondary">Back</button>
+                  <button onClick={() => setStep(7)} className="btn-secondary">Back</button>
                   <button
                     onClick={onSubmit}
                     className="btn-primary"

@@ -206,7 +206,7 @@ export async function createBooking(
           languages: input.accessibilityLanguages ?? {},
         }),
         transportationReimbursementRequested: input.transportationReimbursementRequested ?? false,
-        specialRequests: input.specialRequests,
+        groupNotes: input.groupNotes,
         cocAcknowledged: input.cocAcknowledged,
         rescheduleTokenHash: tokenHash,
         rescheduleTokenExpiresAt: tokenExpiresAt,

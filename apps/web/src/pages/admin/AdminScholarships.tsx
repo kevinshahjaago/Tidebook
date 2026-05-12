@@ -6,7 +6,7 @@ import { ScholarshipStatus } from "@tidebook/shared";
 export default function AdminScholarships() {
   const qc = useQueryClient();
   const [filterStatus, setFilterStatus] = useState("");
-  const [reviewing, setReviewing] = useState<{ id: string; decision: "APPROVED" | "DENIED"; notes: string; budget?: number } | null>(null);
+  const [reviewing, setReviewing] = useState<{ id: string; decision: "APPROVED" | "DENIED"; notes: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-scholarships", filterStatus],
@@ -15,8 +15,8 @@ export default function AdminScholarships() {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: (d: { id: string; decision: string; notes: string; budgetAllocated?: number }) =>
-      api.post(`/admin/scholarships/${d.id}/review`, { decision: d.decision, notes: d.notes, budgetAllocated: d.budgetAllocated }),
+    mutationFn: (d: { id: string; decision: string; notes: string }) =>
+      api.post(`/admin/scholarships/${d.id}/review`, { decision: d.decision, notes: d.notes }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-scholarships"] }); setReviewing(null); },
   });
 
@@ -51,14 +51,13 @@ export default function AdminScholarships() {
                 <div className="text-sm text-gray-600 mt-1 space-y-0.5">
                   <p>Title I: {app.titleOneStatus ? "Yes" : "No"}</p>
                   <p>Enrollment: {app.enrollmentCount}</p>
-                  {app.budgetAllocated && <p>Budget allocated: ${app.budgetAllocated}</p>}
                   {app.reviewNotes && <p className="text-gray-500 italic">"{app.reviewNotes}"</p>}
                 </div>
               </div>
               {(app.status === ScholarshipStatus.SUBMITTED || app.status === ScholarshipStatus.UNDER_REVIEW) && (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setReviewing({ id: app.id, decision: "APPROVED", notes: "", budget: undefined })}
+                    onClick={() => setReviewing({ id: app.id, decision: "APPROVED", notes: "" })}
                     className="btn-primary text-sm px-3 py-1.5"
                   >
                     Approve
@@ -83,20 +82,9 @@ export default function AdminScholarships() {
                   value={reviewing.notes}
                   onChange={(e) => setReviewing((r) => r ? { ...r, notes: e.target.value } : null)}
                 />
-                {reviewing.decision === "APPROVED" && (
-                  <div>
-                    <label className="label text-xs">Budget Allocated ($)</label>
-                    <input
-                      type="number"
-                      className="input text-sm w-32"
-                      value={reviewing.budget ?? ""}
-                      onChange={(e) => setReviewing((r) => r ? { ...r, budget: +e.target.value } : null)}
-                    />
-                  </div>
-                )}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => reviewMutation.mutate({ id: reviewing.id, decision: reviewing.decision, notes: reviewing.notes, budgetAllocated: reviewing.budget })}
+                    onClick={() => reviewMutation.mutate({ id: reviewing.id, decision: reviewing.decision, notes: reviewing.notes })}
                     disabled={reviewMutation.isPending}
                     className="btn-primary text-sm px-4 py-2"
                   >

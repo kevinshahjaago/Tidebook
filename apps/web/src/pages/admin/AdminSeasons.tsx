@@ -69,7 +69,7 @@ export default function AdminSeasons() {
             </div>
             <div>
               <label className="label text-xs">Default daily visitor limit</label>
-              <input type="number" className="input text-sm" value={form.defaultDailyCapacity} onChange={(e) => setForm((f) => ({ ...f, defaultDailyCapacity: +e.target.value }))} />
+              <input type="number" className="input text-sm" value={form.defaultDailyCapacity} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setForm((f) => ({ ...f, defaultDailyCapacity: +e.target.value }))} />
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm cursor-pointer">

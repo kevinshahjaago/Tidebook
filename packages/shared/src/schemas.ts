@@ -112,7 +112,7 @@ export const createBookingSchema = z.object({
   website: z.string().max(0).optional(),
   classOfferingId: z.string().uuid().optional(),
   classTimeSlot: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  specialRequests: z.string().max(2000, "Please keep this under 2,000 characters").optional(),
+  groupNotes: z.string().max(2000, "Please keep this under 2,000 characters").optional(),
   gradeStudentCounts: z.string().optional(), // JSON map: { "3rd Grade": 20, ... }
   // Scholarship sub-flow (required when paymentMethod === SCHOLARSHIP)
   scholarship: z
@@ -315,7 +315,7 @@ export const createConnectionsBookingSchema = z.object({
     .string()
     .min(1, "Please let us know about any accessibility needs — select all that apply or enter 'None'")
     .max(2000, "Please keep this under 2,000 characters"),
-  specialRequests: z.string().max(2000, "Please keep this under 2,000 characters").optional(),
+  groupNotes: z.string().max(2000, "Please keep this under 2,000 characters").optional(),
   cocAcknowledged: z.literal(true, {
     errorMap: () => ({
       message: "Please read and acknowledge the Code of Conduct before submitting",

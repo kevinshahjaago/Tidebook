@@ -77,6 +77,22 @@ enum EmailStatus {
   FAILED
 }
 
+enum JourneyTrigger {
+  BOOKING_SUBMITTED
+  BOOKING_CONFIRMED
+  BOOKING_DECLINED
+  BOOKING_RESCHEDULED_BY_ADMIN
+  BOOKING_RESCHEDULED_BY_BOOKER
+  BOOKING_CANCELLED
+}
+
+enum ScheduledEmailStatus {
+  PENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
 enum AuditActorType {
   USER
   SYSTEM
@@ -121,7 +137,7 @@ model Booking {
   paymentMethod  PaymentMethod
   acmeOrderNumber String? // populated after successful ACME push
 
-  specialRequests   String?
+  groupNotes        String?
   accessibilityNeeds String?
   cocAcknowledged   Boolean @default(false)
   internalNotes     String? // staff-only, never exposed externally
@@ -143,6 +159,7 @@ model Booking {
   scholarshipApplication ScholarshipApplication?
   busReimbursement       BusReimbursement?
   emailLogs              EmailLog[]
+  scheduledEmails        ScheduledEmail[]
 
   // Connections Partner (null for public bookings)
   connectionsPartnerId String?
@@ -251,6 +268,7 @@ model BusReimbursement {
   submittedAt     DateTime?
   processedAt     DateTime?
   busCount        Int       @default(1)
+  seasonKey       String?   // e.g. "2025-26" for budget tracking
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 }
@@ -350,6 +368,40 @@ model EmailTemplate {
   bodyText    String
   isEnabled   Boolean          @default(true)
   updatedAt   DateTime         @updatedAt
+}
+
+// ─── Email Journeys ───────────────────────────────────────────────────────────
+
+model EmailJourney {
+  id          String         @id @default(cuid())
+  name        String
+  description String         @default("")
+  trigger     JourneyTrigger
+  isEnabled   Boolean        @default(true)
+  steps       Json           @default("[]")
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([trigger])
+}
+
+model ScheduledEmail {
+  id           String               @id @default(cuid())
+  bookingId    String
+  journeyId    String
+  stepId       String
+  templateType EmailTriggerType
+  scheduledFor DateTime
+  sentAt       DateTime?
+  status       ScheduledEmailStatus @default(PENDING)
+  errorMessage String?
+  createdAt    DateTime             @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledFor])
+  @@index([bookingId])
 }
 
 // ─── App Settings ─────────────────────────────────────────────────────────────

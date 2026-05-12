@@ -9,41 +9,41 @@ export default {
         display: ["DM Sans", "system-ui", "sans-serif"],
       },
       colors: {
-        // Seattle Aquarium signature ocean teal palette
+        // Seattle Aquarium Mediterranean Blue — exact primary from official logo
         aqua: {
-          50: "#EBF8FA",
-          100: "#C3EDF4",
-          200: "#87D9E7",
-          300: "#3BBDD4",
-          400: "#009EB8",
-          500: "#0083A0",
-          600: "#006B82",
-          700: "#005568",   // primary brand — used for buttons, sidebar
-          800: "#003E4E",
-          900: "#002A36",
+          50: "#EEF4FB",
+          100: "#C9DDF5",
+          200: "#92BBE9",
+          300: "#5B9ADE",
+          400: "#337DCF",
+          500: "#1A63B0",   // Mediterranean Blue — official brand primary
+          600: "#154E8C",
+          700: "#103A69",   // primary dark — buttons, active states
+          800: "#0B2847",
+          900: "#071929",   // sidebar dark
         },
         // Deep navy for text and dark UI elements
         navy: {
-          700: "#1A3347",
-          800: "#0F2234",
-          900: "#091929",
+          700: "#0F1F35",
+          800: "#0A1525",
+          900: "#05101A",
         },
-        // Warm coral/amber accent
+        // Warm amber accent
         coral: {
           400: "#F4A142",
           500: "#F08520",
           600: "#D96B10",
         },
-        // Seafoam neutral
+        // Light blue-gray neutral
         seafoam: {
-          50: "#F2FAF8",
-          100: "#D9F0EC",
-          200: "#A8DBD3",
+          50: "#F0F6FD",
+          100: "#D6E8F8",
+          200: "#A8CCEF",
         },
       },
       backgroundImage: {
-        "ocean-gradient": "linear-gradient(135deg, #002A36 0%, #005568 50%, #0083A0 100%)",
-        "ocean-gradient-subtle": "linear-gradient(135deg, #003E4E 0%, #005568 100%)",
+        "ocean-gradient": "linear-gradient(135deg, #071929 0%, #103A69 50%, #1A63B0 100%)",
+        "ocean-gradient-subtle": "linear-gradient(135deg, #0B2847 0%, #103A69 100%)",
       },
       boxShadow: {
         "card": "0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06)",

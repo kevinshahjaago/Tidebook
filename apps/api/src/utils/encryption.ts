@@ -11,11 +11,10 @@ function getKey(): Buffer {
 
 export function encrypt(plaintext: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cipher = crypto.createCipheriv(ALGORITHM, getKey() as any, iv as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8") as any, cipher.final() as any]);
   const tag = cipher.getAuthTag();
   // Format: iv(hex):tag(hex):ciphertext(hex)
   return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
@@ -29,9 +28,12 @@ export function decrypt(ciphertext: string): string {
   const iv = Buffer.from(ivHex, "hex");
   const tag = Buffer.from(tagHex, "hex");
   const data = Buffer.from(dataHex, "hex");
-  const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv);
-  decipher.setAuthTag(tag);
-  return decipher.update(data) + decipher.final("utf8");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const decipher = crypto.createDecipheriv(ALGORITHM, getKey() as any, iv as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  decipher.setAuthTag(tag as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return decipher.update(data as any) + decipher.final("utf8");
 }
 
 export function hashToken(token: string): string {

@@ -42,7 +42,7 @@ export interface Booking {
   arrivalTimeSlot: string;
   paymentMethod: PaymentMethod;
   acmeOrderNumber: string | null;
-  specialRequests: string | null;
+  groupNotes: string | null;
   accessibilityNeeds: string | null;
   cocAcknowledged: boolean;
   rescheduleDisabled: boolean;

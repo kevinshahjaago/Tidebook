@@ -142,7 +142,7 @@ export default function ConnectionsPortal() {
             </div>
             <div>
               <label className="label">Students</label>
-              <input type="number" className="input" value={formData.studentCount} onChange={(e) => setFormData((f) => ({ ...f, studentCount: +e.target.value }))} />
+              <input type="number" className="input" value={formData.studentCount} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setFormData((f) => ({ ...f, studentCount: +e.target.value }))} />
             </div>
           </div>
 

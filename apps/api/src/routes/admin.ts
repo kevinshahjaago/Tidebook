@@ -885,7 +885,7 @@ adminRouter.get("/schedule/day", async (req: Request, res: Response, next: NextF
         adultCount: dec.adultCount,
         gradeLevels: dec.gradeLevels,
         accessibilityNeeds: dec.accessibilityNeeds,
-        specialRequests: (dec as any).specialRequests ?? null,
+        groupNotes: (dec as any).groupNotes ?? null,
         internalNotes: dec.internalNotes,
         classSession: dec.classBookings[0]
           ? {
@@ -1038,61 +1038,234 @@ adminRouter.get("/analytics/bookings", async (req: Request, res: Response, next:
     const dateFilter = seasonStartDate && seasonEndDate
       ? { visitDate: { gte: seasonStartDate, lte: seasonEndDate } }
       : {};
+    const confirmedFilter = { ...dateFilter, status: { in: ["CONFIRMED", "COMPLETED"] as any } };
 
     if (format === "csv") {
-      const bookings = await (prisma.booking.findMany as any)({
+      const bookings = await prisma.booking.findMany({
         where: dateFilter,
         orderBy: { visitDate: "asc" },
-        include: {
-          classBookings: { include: { classOffering: true } },
-          scholarshipApplication: true,
-        },
-      }) as any[];
+        include: { classBookings: { include: { classOffering: true } }, scholarshipApplication: true },
+      });
 
       const rows = bookings.map((b: any) => {
         const dec = decryptBooking(b);
-        const programName = b.classBookings?.[0]?.classOffering?.name ?? "";
-        const scholarshipStatus = b.scholarshipApplication?.status ?? "";
         return [
-          b.visitDate,
-          b.arrivalTimeSlot ?? "",
-          dec.groupName ?? "",
-          b.groupType,
-          b.status,
-          b.studentCount,
-          b.adultCount,
-          (b.studentCount + b.adultCount),
-          b.gradeLevels.join(", "),
-          programName,
-          b.paymentMethod ?? "",
-          scholarshipStatus,
-          dec.contactName ?? "",
-          dec.contactEmail ?? "",
-          dec.contactPhone ?? "",
-          b.acmeOrderNumber ?? "",
+          b.visitDate, b.arrivalTimeSlot ?? "", dec.organizationName ?? "", dec.schoolDistrict ?? "",
+          b.groupType, b.status, b.studentCount, b.adultCount, b.studentCount + b.adultCount,
+          b.gradeLevels.join("; "), b.paymentMethod ?? "", b.scholarshipApplication?.status ?? "",
+          b.transportationReimbursementRequested ? "Yes" : "No",
+          b.classBookings?.[0]?.classOffering?.name ?? "",
+          dec.contactName ?? "", dec.contactEmail ?? "", b.acmeOrderNumber ?? "",
         ].map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
       });
 
-      const header = ["Date","Time","Group Name","Group Type","Status","Students","Adults","Total","Grade Level","Program","Payment Method","Scholarship","Contact Name","Contact Email","Contact Phone","ACME Order"].join(",");
+      const header = ["Date","Time","Organization","District","Group Type","Status","Students","Adults","Total","Grades","Payment","Scholarship","Transport Reimb","Program","Contact Name","Contact Email","ACME Order"].join(",");
       const csv = [header, ...rows].join("\n");
-      const filename = seasonStartDate && seasonEndDate
-        ? `analytics-${seasonStartDate}-to-${seasonEndDate}.csv`
-        : `analytics-all.csv`;
-
+      const filename = seasonStartDate && seasonEndDate ? `analytics-${seasonStartDate}-to-${seasonEndDate}.csv` : `analytics-all.csv`;
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       return res.send(csv);
     }
 
-    const [totalByStatus, totalByGroupType, totalByPaymentMethod, monthlyTotals] = await prisma.$transaction([
+    // Fetch per-student revenue setting
+    const revenueSetting = await prisma.appSetting.findUnique({ where: { key: "per_student_revenue" } });
+    const perStudentRevenue = parseFloat(revenueSetting?.value ?? "0");
+
+    const transportBudgetSetting = await prisma.appSetting.findUnique({ where: { key: "transportation_budget_per_season" } });
+    const transportBudget = parseFloat(transportBudgetSetting?.value ?? "0");
+
+    const [
+      totalByStatus,
+      totalByGroupType,
+      totalByPaymentMethod,
+      confirmedAggregates,
+      confirmedBookings,
+      scholarshipStats,
+      transportStats,
+      monthlyVisits,
+    ] = await prisma.$transaction([
       prisma.booking.groupBy({ by: ["status"], _count: true, where: dateFilter, orderBy: { status: "asc" } }),
-      prisma.booking.groupBy({ by: ["groupType"], _count: true, where: dateFilter, orderBy: { groupType: "asc" } }),
-      prisma.booking.groupBy({ by: ["paymentMethod"], _count: true, where: dateFilter, orderBy: { paymentMethod: "asc" } }),
-      prisma.booking.groupBy({ by: ["visitDate"], _count: true, _sum: { studentCount: true, adultCount: true }, where: dateFilter, orderBy: { visitDate: "asc" } }),
+      prisma.booking.groupBy({ by: ["groupType"], _count: true, where: confirmedFilter, orderBy: { groupType: "asc" } }),
+      prisma.booking.groupBy({ by: ["paymentMethod"], _count: true, where: confirmedFilter, orderBy: { paymentMethod: "asc" } }),
+      prisma.booking.aggregate({
+        where: confirmedFilter,
+        _sum: { studentCount: true, adultCount: true },
+        _count: true,
+        _avg: { studentCount: true },
+      }),
+      // For unique orgs + grade breakdown we need raw data
+      prisma.booking.findMany({
+        where: confirmedFilter,
+        select: {
+          organizationName: true, schoolDistrict: true, gradeLevels: true,
+          studentCount: true, adultCount: true, paymentMethod: true,
+          visitDate: true, createdAt: true,
+          scholarshipApplication: { select: { status: true } },
+          busReimbursement: { select: { amountApproved: true, status: true } },
+        },
+        take: 5000,
+      }),
+      prisma.scholarshipApplication.groupBy({ by: ["status"], _count: true, where: { booking: dateFilter }, orderBy: { status: "asc" } }),
+      prisma.busReimbursement.aggregate({
+        where: { booking: dateFilter, status: { in: ["SUBMITTED", "PROCESSED"] as any } },
+        _count: true,
+        _sum: { amountApproved: true },
+      }),
+      prisma.booking.groupBy({
+        by: ["visitDate"],
+        where: confirmedFilter,
+        _count: true,
+        _sum: { studentCount: true, adultCount: true },
+        orderBy: { visitDate: "asc" },
+      }),
     ]);
 
-    res.json({ totalByStatus, totalByGroupType, totalByPaymentMethod, monthlyTotals });
+    // Decrypt org names for unique-org count
+    const decryptedBookings = confirmedBookings.map((b: any) => ({
+      ...b,
+      organizationName: (() => { try { return decrypt(b.organizationName); } catch { return b.organizationName; } })(),
+      schoolDistrict: b.schoolDistrict,
+    }));
+
+    const uniqueOrgs = new Set(decryptedBookings.map((b: any) => b.organizationName.toLowerCase().trim())).size;
+    const uniqueDistricts = new Set(
+      decryptedBookings.filter((b: any) => b.schoolDistrict).map((b: any) => b.schoolDistrict!.toLowerCase().trim())
+    ).size;
+
+    // Grade level breakdown (across all confirmed bookings)
+    const gradeCounts: Record<string, number> = {};
+    for (const b of decryptedBookings) {
+      for (const grade of b.gradeLevels) {
+        gradeCounts[grade] = (gradeCounts[grade] ?? 0) + b.studentCount / Math.max(b.gradeLevels.length, 1);
+      }
+    }
+    const gradeBreakdown = Object.entries(gradeCounts)
+      .map(([grade, count]) => ({ grade, count: Math.round(count) }))
+      .sort((a, b) => b.count - a.count);
+
+    // Revenue: non-scholarship confirmed bookings × per_student_revenue
+    const payingStudents = decryptedBookings
+      .filter((b: any) => b.paymentMethod !== "SCHOLARSHIP")
+      .reduce((s: number, b: any) => s + b.studentCount, 0);
+    const estimatedRevenue = payingStudents * perStudentRevenue;
+
+    // Average lead time (days from createdAt to visitDate)
+    const leadTimes = decryptedBookings.map((b: any) => {
+      const created = new Date(b.createdAt);
+      const visit = new Date(b.visitDate + "T00:00:00Z");
+      return Math.max(0, Math.round((visit.getTime() - created.getTime()) / 86400000));
+    });
+    const avgLeadTimeDays = leadTimes.length > 0 ? Math.round(leadTimes.reduce((s, n) => s + n, 0) / leadTimes.length) : 0;
+
+    // Top school districts
+    const districtMap: Record<string, number> = {};
+    for (const b of decryptedBookings) {
+      if (b.schoolDistrict?.trim()) {
+        const d = b.schoolDistrict.trim();
+        districtMap[d] = (districtMap[d] ?? 0) + 1;
+      }
+    }
+    const topDistricts = Object.entries(districtMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([district, count]) => ({ district, count }));
+
+    // Cancellation rate
+    const totalSubmitted = totalByStatus.reduce((s: number, r: any) => s + r._count, 0);
+    const cancelledCount = Number((totalByStatus.find((r: any) => r.status === "CANCELLED") as any)?._count ?? 0);
+    const cancellationRate = totalSubmitted > 0 ? Math.round((cancelledCount / totalSubmitted) * 100) : 0;
+
+    const totalStudents = confirmedAggregates._sum.studentCount ?? 0;
+    const totalAdults = confirmedAggregates._sum.adultCount ?? 0;
+
+    res.json({
+      // Summary stats
+      totalConfirmedBookings: confirmedAggregates._count,
+      uniqueOrganizations: uniqueOrgs,
+      uniqueDistricts,
+      totalStudents,
+      totalAdults,
+      totalVisitors: totalStudents + totalAdults,
+      avgGroupSize: Math.round(confirmedAggregates._avg.studentCount ?? 0),
+      avgLeadTimeDays,
+      cancellationRate,
+      // Revenue
+      perStudentRevenue,
+      payingStudents,
+      estimatedRevenue,
+      // Scholarship
+      scholarshipStats,
+      // Transportation
+      transportBudget,
+      transportReimbursementsCount: transportStats._count,
+      transportTotalApproved: Number(transportStats._sum.amountApproved ?? 0),
+      // Breakdowns
+      totalByStatus,
+      totalByGroupType,
+      totalByPaymentMethod,
+      gradeBreakdown,
+      topDistricts,
+      monthlyVisits,
+    });
   } catch (err) {
     next(err);
   }
+});
+
+// ─── Email Journeys ───────────────────────────────────────────────────────────
+
+adminRouter.get("/journeys", requireRole(UserRole.ADMIN, UserRole.REGISTRAR), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const journeys = await prisma.emailJourney.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
+    res.json({ journeys });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post("/journeys", requireRole(UserRole.ADMIN), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, description, trigger, isEnabled, steps, sortOrder } = z.object({
+      name: z.string().min(1).max(200),
+      description: z.string().max(500).default(""),
+      trigger: z.enum(["BOOKING_SUBMITTED","BOOKING_CONFIRMED","BOOKING_DECLINED","BOOKING_RESCHEDULED_BY_ADMIN","BOOKING_RESCHEDULED_BY_BOOKER","BOOKING_CANCELLED"]),
+      isEnabled: z.boolean().default(true),
+      steps: z.array(z.any()).default([]),
+      sortOrder: z.number().int().default(0),
+    }).parse(req.body);
+    const journey = await prisma.emailJourney.create({ data: { name, description, trigger: trigger as any, isEnabled, steps, sortOrder } });
+    await auditLog({ actorId: req.user!.id, actorType: "USER", action: "JOURNEY_CREATED", entityType: "EmailJourney", entityId: journey.id, after: { name, trigger }, ipAddress: req.ip });
+    res.status(201).json({ journey });
+  } catch (err) { next(err); }
+});
+
+adminRouter.put("/journeys/:id", requireRole(UserRole.ADMIN), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, description, isEnabled, steps, sortOrder } = z.object({
+      name: z.string().min(1).max(200).optional(),
+      description: z.string().max(500).optional(),
+      isEnabled: z.boolean().optional(),
+      steps: z.array(z.any()).optional(),
+      sortOrder: z.number().int().optional(),
+    }).parse(req.body);
+    const journey = await prisma.emailJourney.update({
+      where: { id: req.params.id },
+      data: { ...(name !== undefined && { name }), ...(description !== undefined && { description }), ...(isEnabled !== undefined && { isEnabled }), ...(steps !== undefined && { steps }), ...(sortOrder !== undefined && { sortOrder }) },
+    });
+    res.json({ journey });
+  } catch (err) { next(err); }
+});
+
+adminRouter.delete("/journeys/:id", requireRole(UserRole.ADMIN), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.emailJourney.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Process due scheduled emails (called by external cron or admin manually)
+adminRouter.post("/journeys/process-queue", requireRole(UserRole.ADMIN), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { processScheduledEmails } = await import("../services/journeyService");
+    const result = await processScheduledEmails();
+    res.json(result);
+  } catch (err) { next(err); }
 });

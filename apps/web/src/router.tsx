@@ -24,6 +24,7 @@ const AdminCapacity = React.lazy(() => import("./pages/admin/AdminCapacity"));
 const AdminOnboarding = React.lazy(() => import("./pages/admin/AdminOnboarding"));
 const AdminSchedule = React.lazy(() => import("./pages/admin/AdminSchedule"));
 const AdminEmailTemplates = React.lazy(() => import("./pages/admin/AdminEmailTemplates"));
+const AdminJourneys = React.lazy(() => import("./pages/admin/AdminJourneys"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 
 const LoadingSpinner = () => (
@@ -95,6 +96,7 @@ export const router = createBrowserRouter([
       { path: "architecture", element: <Suspense fallback={<LoadingSpinner />}><AdminArchitecture /></Suspense> },
       { path: "onboarding", element: <Suspense fallback={<LoadingSpinner />}><AdminOnboarding /></Suspense> },
       { path: "email-templates", element: <Suspense fallback={<LoadingSpinner />}><AdminEmailTemplates /></Suspense> },
+      { path: "journeys", element: <Suspense fallback={<LoadingSpinner />}><AdminJourneys /></Suspense> },
     ],
   },
   {

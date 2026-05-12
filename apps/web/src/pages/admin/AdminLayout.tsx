@@ -18,6 +18,7 @@ import {
   Network,
   Compass,
   Mail,
+  GitBranch,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { to: "capacity",     icon: CalendarX2,      label: "Visit Calendar" },
   { to: "analytics",        icon: BarChart3,       label: "Reports" },
   { to: "email-templates",  icon: Mail,            label: "Email Templates" },
+  { to: "journeys",         icon: GitBranch,       label: "Communication Journeys" },
   { to: "settings",         icon: Settings,        label: "Portal Settings" },
   { to: "users",        icon: Users,           label: "Team & Access" },
   { to: "architecture", icon: Network,         label: "System Overview" },
@@ -64,17 +66,10 @@ export default function AdminLayout() {
   };
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <nav className={`flex flex-col h-full ${mobile ? "w-64" : "w-60"}`} style={{ background: "linear-gradient(180deg, #002A36 0%, #003E4E 100%)" }}>
+    <nav className={`flex flex-col h-full ${mobile ? "w-64" : "w-60"}`} style={{ background: "linear-gradient(180deg, #071929 0%, #103A69 100%)" }}>
       {/* Brand mark */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-aqua-500/20 flex items-center justify-center">
-          <svg viewBox="0 0 24 24" className="w-5 h-5 text-aqua-300" fill="currentColor">
-            {/* Simple wave/fish icon */}
-            <path d="M2 12C2 12 5 8 9 8C11.5 8 13.5 9.5 15 11C16.5 12.5 18.5 14 21 14C21 14 18 18 15 18C12.5 18 10.5 16.5 9 15C7.5 13.5 5.5 12 3 12L2 12Z" opacity="0.6"/>
-            <path d="M4 10C6 8 9 7 12 9C15 11 18 12 21 10" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round"/>
-            <circle cx="19" cy="9" r="1" opacity="0.8"/>
-          </svg>
-        </div>
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
+        <img src="/sa-logo.png" alt="Seattle Aquarium" className="w-9 h-9 object-contain bg-white rounded p-0.5 flex-shrink-0" />
         <div>
           <div className="font-semibold text-sm text-white leading-tight">Seattle Aquarium</div>
           <div className="text-[11px] text-aqua-300/80 font-normal">Education Portal</div>

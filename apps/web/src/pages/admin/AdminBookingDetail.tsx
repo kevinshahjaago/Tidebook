@@ -151,10 +151,10 @@ export default function AdminBookingDetail() {
                   <dd className="text-amber-700 bg-amber-50 rounded px-2 py-0.5">{booking.accessibilityNeeds}</dd>
                 </>
               )}
-              {(booking as any).specialRequests && (
+              {(booking as any).groupNotes && (
                 <>
-                  <dt className="text-gray-500">Special Requests</dt>
-                  <dd>{(booking as any).specialRequests}</dd>
+                  <dt className="text-gray-500">Group Notes</dt>
+                  <dd>{(booking as any).groupNotes}</dd>
                 </>
               )}
               {(booking as any).transportationReimbursementRequested && (

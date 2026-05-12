@@ -1,0 +1,344 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  CANCELLED
+  COMPLETED
+  WAITLISTED
+}
+
+enum GroupType {
+  SCHOOL
+  HOMESCHOOL
+  CORPORATE
+  ADHOC
+  CONNECTIONS
+}
+
+enum PaymentMethod {
+  PAID
+  SCHOLARSHIP
+  INVOICE
+}
+
+enum UserRole {
+  ADMIN
+  REGISTRAR
+  CONNECTIONS_COORDINATOR
+  READ_ONLY
+}
+
+enum ScholarshipStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  DENIED
+}
+
+enum BusReimbursementStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  PROCESSED
+}
+
+enum EmailTriggerType {
+  BOOKING_CONFIRMED_STANDARD
+  BOOKING_PENDING_REVIEW
+  BOOKING_CONFIRMED_BY_REGISTRAR
+  BOOKING_DECLINED
+  RESCHEDULE_COMPLETED
+  RESCHEDULE_PENDING_REVIEW
+  REMINDER_14_DAYS
+  POST_VISIT_SURVEY
+  SCHOLARSHIP_APPROVED
+  SCHOLARSHIP_INCOMPLETE_10_DAYS
+  SCHOLARSHIP_INCOMPLETE_FOLLOWUP
+  BUS_REIMBURSEMENT_INFO
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+enum AuditActorType {
+  USER
+  SYSTEM
+}
+
+// ─── Core Entities ────────────────────────────────────────────────────────────
+
+model Booking {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status    BookingStatus @default(PENDING)
+  groupType GroupType
+
+  // PII fields — stored AES-256 encrypted at application layer
+  organizationName String
+  contactName      String
+  contactEmail     String
+  contactPhone     String
+
+  gradeLevels        String[]
+  gradeStudentCounts String?  // JSON map: { "3rd Grade": 20, "10th Grade": 15 }
+  studentCount       Int
+  adultCount         Int
+
+  visitDate       String // YYYY-MM-DD — stored as string to avoid TZ drift
+  arrivalTimeSlot String // HH:MM
+
+  paymentMethod  PaymentMethod
+  acmeOrderNumber String? // populated after successful ACME push
+
+  specialRequests   String?
+  accessibilityNeeds String?
+  cocAcknowledged   Boolean @default(false)
+  internalNotes     String? // staff-only, never exposed externally
+
+  // Self-serve reschedule
+  rescheduleTokenHash      String?   @unique
+  rescheduleTokenExpiresAt DateTime?
+  rescheduleDisabled       Boolean   @default(false)
+
+  confirmedAt  DateTime?
+  confirmedById String?
+  confirmedBy  User?     @relation("BookingConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  declinedAt     DateTime?
+  declinedReason String?
+
+  // Relations
+  classBookings         ClassBooking[]
+  scholarshipApplication ScholarshipApplication?
+  busReimbursement       BusReimbursement?
+  emailLogs              EmailLog[]
+
+  // Connections Partner (null for public bookings)
+  connectionsPartnerId String?
+  connectionsPartner   ConnectionsPartner? @relation(fields: [connectionsPartnerId], references: [id], onDelete: SetNull)
+
+  @@index([visitDate])
+  @@index([status])
+  @@index([groupType])
+  @@index([contactEmail])
+  @@index([connectionsPartnerId])
+}
+
+model ClassOffering {
+  id          String  @id @default(uuid())
+  name        String
+  description String
+  gradeMin    Int
+  gradeMax    Int
+  durationMinutes Int @default(60)
+  capacity    Int
+  resourceRequirements String?
+  availableTimeSlots   String?  // JSON array of HH:MM strings; null means no restriction
+  isActive    Boolean @default(true)
+
+  classBookings ClassBooking[]
+}
+
+model ClassBooking {
+  id               String  @id @default(uuid())
+  bookingId        String
+  classOfferingId  String
+  sessionSlot      String  // HH:MM — which time slot this class occupies on that day
+  instructorId     String?
+  resourceNotes    String?
+
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  classOffering ClassOffering @relation(fields: [classOfferingId], references: [id], onDelete: Restrict)
+  instructor    User?         @relation("ClassInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([classOfferingId])
+  @@index([sessionSlot])
+}
+
+model DailyCapacity {
+  date          String  @id // YYYY-MM-DD
+  capacityLimit Int
+  isBlackout    Boolean @default(false)
+  note          String?
+}
+
+model SlotHold {
+  id        String   @id @default(cuid())
+  visitDate String
+  timeSlot  String
+  groupSize Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([visitDate])
+  @@index([expiresAt])
+}
+
+model Season {
+  id                   String   @id @default(uuid())
+  name                 String
+  startDate            String   // YYYY-MM-DD
+  endDate              String   // YYYY-MM-DD
+  registrationOpensAt  DateTime
+  registrationClosesAt DateTime
+  defaultDailyCapacity Int      @default(300)
+  isPublished          Boolean  @default(false)
+
+  @@index([isPublished])
+}
+
+model ScholarshipApplication {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  status    ScholarshipStatus @default(SUBMITTED)
+
+  titleOneStatus  Boolean
+  enrollmentCount Int
+  qualifyingInfo  String?
+  qualifyingDocumentPath String? // filesystem path, never public URL
+
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  budgetAllocated Decimal? @db.Decimal(10, 2)
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reviewedBy User?   @relation("ScholarshipReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+model BusReimbursement {
+  id        String @id @default(uuid())
+  bookingId String @unique
+  status    BusReimbursementStatus @default(NOT_SUBMITTED)
+
+  amountRequested Decimal? @db.Decimal(10, 2)
+  amountApproved  Decimal? @db.Decimal(10, 2)
+  submittedAt     DateTime?
+  processedAt     DateTime?
+  busCount        Int       @default(1)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// ─── Users & Auth ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  tokenVersion Int      @default(0)
+
+  // Track failed login attempts for lockout
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+
+  confirmedBookings   Booking[]      @relation("BookingConfirmedBy")
+  instructedClasses   ClassBooking[] @relation("ClassInstructor")
+  reviewedScholarships ScholarshipApplication[] @relation("ScholarshipReviewer")
+  createdConnections  ConnectionsPartner[] @relation("PartnerCreatedBy")
+}
+
+model MagicLinkToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([email])
+}
+
+model ConnectionsPartner {
+  id               String  @id @default(uuid())
+  organizationName String
+  contactName      String
+  contactEmail     String  @unique
+  passwordHash     String
+  isActive         Boolean @default(true)
+  raisersEdgeId    String?
+
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+  tokenVersion        Int      @default(0)
+
+  createdById String
+  createdBy   User   @relation("PartnerCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  bookings Booking[]
+}
+
+// ─── Email & Audit ────────────────────────────────────────────────────────────
+
+model EmailLog {
+  id          String   @id @default(uuid())
+  bookingId   String
+  sentAt      DateTime @default(now())
+  toAddress   String   // encrypted
+  triggerType EmailTriggerType
+  subject     String
+  status      EmailStatus
+  errorMessage String?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@index([triggerType])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  timestamp  DateTime @default(now())
+  actorId    String?  // null = system
+  actorType  AuditActorType
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([timestamp])
+}
+
+// ─── Email Templates ──────────────────────────────────────────────────────────
+
+model EmailTemplate {
+  id          String           @id @default(uuid())
+  triggerType EmailTriggerType @unique
+  subject     String
+  bodyHtml    String
+  bodyText    String
+  isEnabled   Boolean          @default(true)
+  updatedAt   DateTime         @updatedAt
+}
+
+// ─── App Settings ─────────────────────────────────────────────────────────────
+
+model AppSetting {
+  key       String @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

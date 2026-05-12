@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://tidebook:testpass@localhost:5432/tidebook_test
+  DATABASE_URL_TEST: postgresql://tidebook:testpass@localhost:5432/tidebook_test
+  PII_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  JWT_ACCESS_SECRET: test-jwt-access-secret-must-be-at-least-32-characters
+  JWT_REFRESH_SECRET: test-jwt-refresh-secret-must-be-at-least-32-characters
+  SMTP_HOST: localhost
+  SMTP_PORT: 1025
+  SMTP_USER: test@test.com
+  SMTP_PASS: testpass
+  EMAIL_FROM: test@test.com
+  ACME_USE_MOCK: "true"
+  SEED_ADMIN_EMAIL: admin@test.com
+  SEED_ADMIN_PASSWORD: AdminPassword123!
+
+jobs:
+  # ─── Security audit ──────────────────────────────────────────────────────────
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Audit dependencies (fail on high/critical)
+        run: npm audit --audit-level=high
+
+  # ─── Type check ──────────────────────────────────────────────────────────────
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  # ─── Unit + Integration tests ────────────────────────────────────────────────
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tidebook
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: tidebook_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build shared package
+        run: npm run build -w packages/shared
+      - name: Generate Prisma client
+        run: npx prisma generate --schema=./prisma/schema.prisma
+      - name: Run migrations on test DB
+        run: npx prisma migrate deploy --schema=./prisma/schema.prisma
+      - name: Run unit tests
+        run: npm run test:unit -w apps/api
+      - name: Run integration tests
+        run: npm run test:integration -w apps/api
+
+  # ─── E2E tests ───────────────────────────────────────────────────────────────
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test-backend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tidebook
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: tidebook_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build all packages
+        run: npm run build
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Setup DB
+        run: |
+          npx prisma migrate deploy --schema=./prisma/schema.prisma
+          ts-node prisma/seed.ts
+      - name: Start API server
+        run: npm run start -w apps/api &
+        env:
+          PORT: 4000
+      - name: Start web server (preview)
+        run: npm run preview -w apps/web &
+        env:
+          BASE_URL: http://localhost:4173
+      - name: Wait for servers
+        run: |
+          npx wait-on http://localhost:4000/health
+          npx wait-on http://localhost:4173
+      - name: Run E2E tests
+        run: npm run test:e2e -w apps/web
+        env:
+          BASE_URL: http://localhost:4173
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/

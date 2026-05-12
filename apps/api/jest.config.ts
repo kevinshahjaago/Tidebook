@@ -16,6 +16,7 @@ const config: Config = {
     "!src/types/**",
   ],
   coverageThreshold: {
+    global: {},
     "src/services/**": { lines: 100, functions: 100 },
   },
 };

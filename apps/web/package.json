@@ -14,20 +14,20 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@hookform/resolvers": "3.4.2",
     "@tanstack/react-query": "5.37.1",
     "@tidebook/shared": "*",
-    "axios": "1.7.2",
+    "axios": "1.16.0",
     "date-fns": "3.6.0",
     "lucide-react": "0.379.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-hook-form": "7.51.4",
-    "react-router-dom": "6.23.1",
-    "zod": "3.23.8",
-    "@hookform/resolvers": "3.4.2"
+    "react-router-dom": "6.30.3",
+    "zod": "3.23.8"
   },
   "devDependencies": {
-    "@playwright/test": "1.44.0",
+    "@playwright/test": "1.60.0",
     "@testing-library/jest-dom": "6.4.5",
     "@testing-library/react": "15.0.7",
     "@testing-library/user-event": "14.5.2",
@@ -36,10 +36,10 @@
     "@vitejs/plugin-react": "4.2.1",
     "autoprefixer": "10.4.19",
     "jsdom": "24.0.0",
-    "postcss": "8.4.38",
+    "postcss": "8.5.14",
     "tailwindcss": "3.4.3",
     "typescript": "5.4.5",
-    "vite": "5.2.11",
-    "vitest": "1.6.0"
+    "vite": "5.4.21",
+    "vitest": "1.6.1"
   }
 }

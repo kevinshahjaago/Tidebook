@@ -54,6 +54,15 @@ export const createBookingSchema = z.object({
       /^(\+1[\s.\-]?)?(\(?\d{3}\)?[\s.\-]?)\d{3}[\s.\-]?\d{4}$/,
       "Please enter a valid US phone number (e.g., 206-555-1234)"
     ),
+  dayOfContactName: z.string().max(200, "Name is too long").optional().or(z.literal("")),
+  dayOfContactPhone: z
+    .string()
+    .regex(
+      /^(\+1[\s.\-]?)?(\(?\d{3}\)?[\s.\-]?)\d{3}[\s.\-]?\d{4}$/,
+      "Please enter a valid US phone number (e.g., 206-555-1234)"
+    )
+    .optional()
+    .or(z.literal("")),
   gradeLevels: z
     .array(z.string().max(20))
     .min(1, "Please select at least one grade level for your group")

@@ -28,6 +28,8 @@ export interface Booking {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  dayOfContactName: string | null;
+  dayOfContactPhone: string | null;
   gradeLevels: string[];
   gradeStudentCounts: string | null;
   studentCount: number;

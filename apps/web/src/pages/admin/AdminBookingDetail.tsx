@@ -201,8 +201,20 @@ export default function AdminBookingDetail() {
               <dd>{booking.contactName}</dd>
               <dt className="text-gray-500">Email</dt>
               <dd><a href={`mailto:${booking.contactEmail}`} className="text-aqua-700">{booking.contactEmail}</a></dd>
-              <dt className="text-gray-500">Phone</dt>
+              <dt className="text-gray-500">Direct Phone</dt>
               <dd>{booking.contactPhone}</dd>
+              {booking.dayOfContactName && (
+                <>
+                  <dt className="text-gray-500">Day-of-Visit Contact</dt>
+                  <dd>{booking.dayOfContactName}</dd>
+                </>
+              )}
+              {booking.dayOfContactPhone && (
+                <>
+                  <dt className="text-gray-500">Day-of-Visit Phone</dt>
+                  <dd>{booking.dayOfContactPhone}</dd>
+                </>
+              )}
             </dl>
           </div>
 

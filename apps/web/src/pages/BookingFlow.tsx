@@ -680,7 +680,7 @@ export default function BookingFlow() {
                       {errors.contactName && <p className="error-message">{errors.contactName.message}</p>}
                     </div>
                     <div>
-                      <label className="label">Phone (required)</label>
+                      <label className="label">Direct Phone (required)</label>
                       <input
                         type="tel"
                         inputMode="tel"
@@ -698,6 +698,36 @@ export default function BookingFlow() {
                         })()}
                       />
                       {errors.contactPhone && <p className="error-message">{errors.contactPhone.message}</p>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">Day-of-Visit Contact Name</label>
+                      <input
+                        className="input"
+                        placeholder="If different from lead contact"
+                        {...form.register("dayOfContactName")}
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Day-of-Visit Phone</label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="(206) 555-1234"
+                        className={`input ${errors.dayOfContactPhone ? "input-error" : ""}`}
+                        {...(() => {
+                          const { onChange, ...rest } = form.register("dayOfContactPhone");
+                          return {
+                            ...rest,
+                            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                              e.target.value = formatPhone(e.target.value);
+                              onChange(e);
+                            },
+                          };
+                        })()}
+                      />
+                      {errors.dayOfContactPhone && <p className="error-message">{errors.dayOfContactPhone.message}</p>}
                     </div>
                   </div>
                   <div>
@@ -971,6 +1001,18 @@ export default function BookingFlow() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">School District</span>
                       <span className="font-medium">{watch("schoolDistrict")}</span>
+                    </div>
+                  )}
+                  {watch("dayOfContactName") && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Day-of-Visit Contact</span>
+                      <span className="font-medium">{watch("dayOfContactName")}</span>
+                    </div>
+                  )}
+                  {watch("dayOfContactPhone") && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Day-of-Visit Phone</span>
+                      <span className="font-medium">{watch("dayOfContactPhone")}</span>
                     </div>
                   )}
                   {watch("addressStreet1") && (

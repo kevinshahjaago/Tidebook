@@ -335,6 +335,7 @@ async function main() {
     { key: "booking_coc_link_label", value: "Code of Conduct" },
     { key: "booking_coc_suffix", value: " and confirm I will review it with my group before the visit." },
     { key: "booking_special_requests_label", value: "Special Requests" },
+    { key: "booking_slot_hold_banner", value: "Your slot for {time} arrival on {date} is reserved for {timer}" },
     { key: "accessibility_options", value: JSON.stringify([
       "Wheelchair access",
       "Elevator access needed",

@@ -15,6 +15,7 @@ import {
 } from "@tidebook/shared";
 import { AlertCircle, Fish, Clock } from "lucide-react";
 import { AxiosError } from "axios";
+import { format, parseISO } from "date-fns";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 type GroupTypeOption = { value: string; label: string; description: string };
@@ -360,8 +361,21 @@ export default function BookingFlow() {
             }`}>
               <Clock className={`h-4 w-4 shrink-0 ${holdSecondsLeft <= 120 ? "text-amber-600" : "text-aqua-300"}`} />
               <span>
-                Your slot for <strong>{formatTimeSlot(watch("arrivalTimeSlot") || "")}</strong> on <strong>{watch("visitDate")}</strong> is reserved for{" "}
-                <span className={`font-mono font-semibold ${holdSecondsLeft <= 120 ? "text-amber-700" : "text-white"}`}>{holdTimerDisplay}</span>
+                {(() => {
+                  const template = s("booking_slot_hold_banner", "Your slot for {time} arrival on {date} is reserved for {timer}");
+                  const rawDate = watch("visitDate");
+                  const formattedDate = rawDate ? format(parseISO(rawDate), "EEEE, MMMM d, yyyy") : "";
+                  const formattedTime = formatTimeSlot(watch("arrivalTimeSlot") || "");
+                  const parts = template.split(/(\{time\}|\{date\}|\{timer\})/);
+                  return parts.map((part, i) => {
+                    if (part === "{time}") return <strong key={i}>{formattedTime}</strong>;
+                    if (part === "{date}") return <strong key={i}>{formattedDate}</strong>;
+                    if (part === "{timer}") return (
+                      <span key={i} className={`font-mono font-semibold ${holdSecondsLeft <= 120 ? "text-amber-700" : "text-white"}`}>{holdTimerDisplay}</span>
+                    );
+                    return part;
+                  });
+                })()}
                 {holdSecondsLeft <= 120 && " — please submit soon!"}
               </span>
             </div>
@@ -420,7 +434,7 @@ export default function BookingFlow() {
                         <span />
                         <span>Grade</span>
                         <span className="w-20 sm:w-24 text-right">Students</span>
-                        <span className="hidden sm:block w-28 text-right pr-1">Ratio</span>
+                        <span className="hidden sm:block w-40 text-right pr-1">Chaperone:Student Ratio</span>
                       </div>
                       {GRADE_OPTIONS.map((grade) => {
                         const isChecked = grade in gradeCountMap;
@@ -452,6 +466,7 @@ export default function BookingFlow() {
                               className={`input text-sm w-20 sm:w-24 text-right ${!isChecked ? "opacity-30 pointer-events-none" : ""}`}
                               value={isChecked ? (gradeCountMap[grade] || "") : ""}
                               placeholder="0"
+                              onWheel={(e) => e.currentTarget.blur()}
                               onChange={(e) => {
                                 const val = Math.max(0, parseInt(e.target.value) || 0);
                                 setGradeCountMap((prev) => ({ ...prev, [grade]: val }));
@@ -500,6 +515,7 @@ export default function BookingFlow() {
                       min="1"
                       inputMode="numeric"
                       className={`input ${errors.studentCount ? "input-error" : ""}`}
+                      onWheel={(e) => e.currentTarget.blur()}
                       {...form.register("studentCount", { valueAsNumber: true })}
                     />
                     {errors.studentCount && <p className="error-message">{errors.studentCount.message}</p>}
@@ -519,6 +535,7 @@ export default function BookingFlow() {
                       type="number"
                       min="0"
                       className={`input ${errors.adultCount ? "input-error" : ""} ${isSchoolGroup ? "max-w-xs" : ""}`}
+                      onWheel={(e) => e.currentTarget.blur()}
                       {...form.register("adultCount", { valueAsNumber: true })}
                     />
                     {errors.adultCount && <p className="error-message">{errors.adultCount.message}</p>}
@@ -696,6 +713,7 @@ export default function BookingFlow() {
                         <input
                           type="number"
                           className={`input ${errors.scholarship?.enrollmentCount ? "input-error" : ""}`}
+                          onWheel={(e) => e.currentTarget.blur()}
                           {...form.register("scholarship.enrollmentCount", { valueAsNumber: true })}
                         />
                         {errors.scholarship?.enrollmentCount && (

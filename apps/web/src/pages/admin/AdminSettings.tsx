@@ -404,6 +404,11 @@ const SETTING_META: Record<string, SettingMeta> = {
     hint: "The part of the agreement sentence that comes after the link.",
     type: "text",
   },
+  booking_slot_hold_banner: {
+    label: "Slot hold countdown banner",
+    hint: "The message shown when a guest's date and time are reserved while they complete the form. Use {time} for the arrival time, {date} for the formatted visit date, and {timer} for the mm:ss countdown.",
+    type: "text",
+  },
   arrival_slot_start: {
     label: "First arrival time of the day",
     hint: "Earliest time a group can arrive. Use 24-hour format — for example, 09:00 for 9 AM.",
@@ -521,6 +526,7 @@ const SECTIONS: Section[] = [
       "__group_type_options__",
       "booking_class_step_description",
       "booking_coc_prefix", "booking_coc_link_label", "booking_coc_suffix",
+      "booking_slot_hold_banner",
     ],
   },
   {

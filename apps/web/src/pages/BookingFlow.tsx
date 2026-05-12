@@ -425,7 +425,7 @@ export default function BookingFlow() {
                 {/* School/homeschool: per-grade student counts */}
                 {isSchoolGroup && (
                   <div className="mb-6">
-                    <label className="label mb-1">Students by grade *</label>
+                    <label className="label mb-1">Students by grade (required)</label>
                     <p className="text-xs text-gray-500 mb-3">
                       Check each grade in your group and enter the number of students. We'll calculate the chaperone requirement for you.
                     </p>
@@ -509,7 +509,7 @@ export default function BookingFlow() {
                 {/* Non-school: single student count */}
                 {!isSchoolGroup && (
                   <div className="mb-4 max-w-xs">
-                    <label className="label">Number of students *</label>
+                    <label className="label">Number of students (required)</label>
                     <input
                       type="number"
                       min="1"
@@ -525,7 +525,7 @@ export default function BookingFlow() {
                 {/* Chaperone count */}
                 <div className={`mb-6 ${isSchoolGroup ? "" : "grid grid-cols-2 gap-4"}`}>
                   <div className={isSchoolGroup ? "" : ""}>
-                    <label className="label">Number of adult chaperones *</label>
+                    <label className="label">Number of adult chaperones (required)</label>
                     {minChaperones > 0 && (
                       <p className="text-xs text-gray-500 mb-1">
                         At least <strong>{minChaperones}</strong> required for your group
@@ -558,7 +558,7 @@ export default function BookingFlow() {
 
                 {visitDate && (
                   <div className="mt-6">
-                    <label className="label">Arrival Time *</label>
+                    <label className="label">Arrival Time (required)</label>
                     <select
                       className={`input ${errors.arrivalTimeSlot ? "input-error" : ""}`}
                       {...form.register("arrivalTimeSlot")}
@@ -616,18 +616,18 @@ export default function BookingFlow() {
                 <h2 className="text-xl font-semibold mb-6">Tell us about your group</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="label">School / Organization Name *</label>
+                    <label className="label">School / Organization Name (required)</label>
                     <input className={`input ${errors.organizationName ? "input-error" : ""}`} {...form.register("organizationName")} />
                     {errors.organizationName && <p className="error-message">{errors.organizationName.message}</p>}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="label">Lead Teacher / Contact Name *</label>
+                      <label className="label">Lead Teacher / Contact Name (required)</label>
                       <input className={`input ${errors.contactName ? "input-error" : ""}`} {...form.register("contactName")} />
                       {errors.contactName && <p className="error-message">{errors.contactName.message}</p>}
                     </div>
                     <div>
-                      <label className="label">Phone *</label>
+                      <label className="label">Phone (required)</label>
                       <input
                         type="tel"
                         inputMode="tel"
@@ -648,14 +648,14 @@ export default function BookingFlow() {
                     </div>
                   </div>
                   <div>
-                    <label className="label">Email Address *</label>
+                    <label className="label">Email Address (required)</label>
                     <input type="email" className={`input ${errors.contactEmail ? "input-error" : ""}`} {...form.register("contactEmail")} />
                     {errors.contactEmail && <p className="error-message">{errors.contactEmail.message}</p>}
                   </div>
                   {/* Grade levels only shown for non-school groups — school/homeschool collect this in step 2 */}
                   {!isSchoolGroup && (
                     <div>
-                      <label className="label">Grade Level(s) *</label>
+                      <label className="label">Grade Level(s) (required)</label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
                         {GRADE_OPTIONS.map((grade) => (
                           <label key={grade} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -673,7 +673,7 @@ export default function BookingFlow() {
                     </div>
                   )}
                   <div>
-                    <label className="label">Billing Arrangement *</label>
+                    <label className="label">Billing Arrangement (required)</label>
                     <div className="space-y-2 mt-1">
                       {paymentMethodOptions.map((opt) => (
                         <label
@@ -709,7 +709,7 @@ export default function BookingFlow() {
                         My school qualifies as Title I
                       </label>
                       <div>
-                        <label className="label">Total School Enrollment *</label>
+                        <label className="label">Total School Enrollment (required)</label>
                         <input
                           type="number"
                           className={`input ${errors.scholarship?.enrollmentCount ? "input-error" : ""}`}
@@ -721,7 +721,7 @@ export default function BookingFlow() {
                         )}
                       </div>
                       <div>
-                        <label className="label">Additional qualifying information *</label>
+                        <label className="label">Additional qualifying information (required)</label>
                         <textarea
                           rows={3}
                           className={`input ${errors.scholarship?.qualifyingInfo ? "input-error" : ""}`}

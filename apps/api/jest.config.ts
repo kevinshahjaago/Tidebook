@@ -7,7 +7,7 @@ const config: Config = {
   moduleNameMapper: {
     "@tidebook/shared": "<rootDir>/../../packages/shared/src/index.ts",
   },
-  setupFilesAfterFramework: [],
+  setupFilesAfterEnv: [],
   testTimeout: 30000,
   collectCoverageFrom: [
     "src/**/*.ts",

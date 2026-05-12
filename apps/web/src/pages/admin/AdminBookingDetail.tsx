@@ -182,6 +182,12 @@ export default function AdminBookingDetail() {
           <div className="card">
             <h2 className="font-semibold mb-4">Contact Information</h2>
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+              {booking.schoolDistrict && (
+                <>
+                  <dt className="text-gray-500">School District</dt>
+                  <dd>{booking.schoolDistrict}</dd>
+                </>
+              )}
               <dt className="text-gray-500">Contact Name</dt>
               <dd>{booking.contactName}</dd>
               <dt className="text-gray-500">Email</dt>
@@ -281,12 +287,12 @@ export default function AdminBookingDetail() {
                   </div>
                   <div>
                     <label className="label text-xs">Number of buses</label>
-                    <input type="number" min="1" className="input text-sm" value={busCount} onChange={(e) => setBusCount(e.target.value)} />
+                    <input type="number" min="1" className="input text-sm" value={busCount} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setBusCount(e.target.value)} />
                   </div>
                 </div>
                 <div>
                   <label className="label text-xs">Amount approved ($)</label>
-                  <input type="number" step="0.01" className="input text-sm max-w-xs" value={busAmount} onChange={(e) => setBusAmount(e.target.value)} placeholder="e.g. 500" />
+                  <input type="number" step="0.01" className="input text-sm max-w-xs" value={busAmount} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => setBusAmount(e.target.value)} placeholder="e.g. 500" />
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => busMutation.mutate()} disabled={!busStatus || busMutation.isPending} className="btn-primary text-sm px-4 py-2">

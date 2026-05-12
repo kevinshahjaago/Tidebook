@@ -620,6 +620,11 @@ export default function BookingFlow() {
                     <input className={`input ${errors.organizationName ? "input-error" : ""}`} {...form.register("organizationName")} />
                     {errors.organizationName && <p className="error-message">{errors.organizationName.message}</p>}
                   </div>
+                  <div>
+                    <label className="label">School District</label>
+                    <input className="input" {...form.register("schoolDistrict")} />
+                    <p className="text-xs text-gray-500 mt-1">{s("booking_school_district_hint", "Enter N/A for private schools, home schools, & colleges/universities.")}</p>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="label">Lead Teacher / Contact Name (required)</label>
@@ -913,6 +918,12 @@ export default function BookingFlow() {
                     <span className="text-gray-600">Organization</span>
                     <span className="font-medium">{watch("organizationName")}</span>
                   </div>
+                  {watch("schoolDistrict") && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">School District</span>
+                      <span className="font-medium">{watch("schoolDistrict")}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Visit date</span>
                     <span className="font-medium">{watch("visitDate")}</span>

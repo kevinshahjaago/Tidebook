@@ -26,6 +26,11 @@ export const createBookingSchema = z.object({
     .string()
     .min(2, "Please enter your school or organization name")
     .max(200, "Organization name is too long"),
+  schoolDistrict: z
+    .string()
+    .max(200, "School district name is too long")
+    .optional()
+    .or(z.literal("")),
   contactName: z
     .string()
     .min(2, "Please enter the lead teacher or contact's name")

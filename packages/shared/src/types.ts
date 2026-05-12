@@ -19,6 +19,7 @@ export interface Booking {
   status: BookingStatus;
   groupType: GroupType;
   organizationName: string;
+  schoolDistrict: string | null;
   contactName: string;
   contactEmail: string;
   contactPhone: string;

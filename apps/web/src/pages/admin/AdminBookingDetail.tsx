@@ -188,6 +188,12 @@ export default function AdminBookingDetail() {
                   <dd>{booking.schoolDistrict}</dd>
                 </>
               )}
+              {booking.organizationAddress && (
+                <>
+                  <dt className="text-gray-500">Address</dt>
+                  <dd>{booking.organizationAddress}</dd>
+                </>
+              )}
               <dt className="text-gray-500">Contact Name</dt>
               <dd>{booking.contactName}</dd>
               <dt className="text-gray-500">Email</dt>

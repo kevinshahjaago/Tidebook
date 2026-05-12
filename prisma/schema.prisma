@@ -89,9 +89,10 @@ model Booking {
   groupType GroupType
 
   // PII fields — stored AES-256 encrypted at application layer
-  organizationName String
-  schoolDistrict   String?
-  contactName      String
+  organizationName    String
+  schoolDistrict      String?
+  organizationAddress String?
+  contactName         String
   contactEmail     String
   contactPhone     String
 

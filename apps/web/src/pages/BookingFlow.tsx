@@ -642,6 +642,10 @@ export default function BookingFlow() {
                     <input className="input" {...form.register("schoolDistrict")} />
                     <p className="text-xs text-gray-500 mt-1">{s("booking_school_district_hint", "Enter N/A for private schools, home schools, & colleges/universities.")}</p>
                   </div>
+                  <div>
+                    <label className="label">School / Organization Address</label>
+                    <input className="input" placeholder="123 Main St, Seattle, WA 98101" {...form.register("organizationAddress")} />
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="label">Lead Teacher / Contact Name (required)</label>
@@ -939,6 +943,12 @@ export default function BookingFlow() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">School District</span>
                       <span className="font-medium">{watch("schoolDistrict")}</span>
+                    </div>
+                  )}
+                  {watch("organizationAddress") && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Address</span>
+                      <span className="font-medium text-right">{watch("organizationAddress")}</span>
                     </div>
                   )}
                   <div className="flex justify-between">

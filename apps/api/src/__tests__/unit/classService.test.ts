@@ -5,6 +5,7 @@ import { ErrorCode } from "@tidebook/shared";
 
 jest.mock("../../db", () => ({
   prisma: {
+    appSetting: { findMany: jest.fn() },
     classOffering: { findUnique: jest.fn() },
     classBooking: { findMany: jest.fn() },
   },
@@ -21,7 +22,13 @@ const mockOffering = {
 };
 
 describe("checkClassAvailability", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default settings — overridden per-test if needed
+    (mockPrisma.appSetting.findMany as jest.Mock).mockResolvedValue([
+      { key: "class_break_minutes", value: "45" },
+    ]);
+  });
 
   it("allows a class when no other classes are booked", async () => {
     (mockPrisma.classOffering.findUnique as jest.Mock).mockResolvedValue(mockOffering);

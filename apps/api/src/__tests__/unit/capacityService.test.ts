@@ -5,19 +5,34 @@ jest.mock("../../db", () => ({
   prisma: {
     dailyCapacity: { findMany: jest.fn() },
     booking: { groupBy: jest.fn() },
-    season: { findFirst: jest.fn() },
+    slotHold: { groupBy: jest.fn() },
+    season: { findMany: jest.fn() },
   },
 }));
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
+// A season that is always open and covers any test date
+const openSeason = {
+  startDate: "2020-01-01",
+  endDate: "2099-12-31",
+  defaultDailyCapacity: 300,
+  registrationOpensAt: new Date("2020-01-01"),
+  registrationClosesAt: new Date("2099-12-31"),
+  isPublished: true,
+};
+
 describe("getAvailabilityCalendar", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: no slot holds — overridden per-test when needed
+    (mockPrisma.slotHold.groupBy as jest.Mock).mockResolvedValue([]);
+  });
 
   it("returns available dates when capacity is sufficient", async () => {
     (mockPrisma.dailyCapacity.findMany as jest.Mock).mockResolvedValue([]);
     (mockPrisma.booking.groupBy as jest.Mock).mockResolvedValue([]);
-    (mockPrisma.season.findFirst as jest.Mock).mockResolvedValue({ defaultDailyCapacity: 300 });
+    (mockPrisma.season.findMany as jest.Mock).mockResolvedValue([openSeason]);
 
     const result = await getAvailabilityCalendar("2026-03-01", "2026-03-03", 50);
 
@@ -37,7 +52,7 @@ describe("getAvailabilityCalendar", () => {
     (mockPrisma.booking.groupBy as jest.Mock).mockResolvedValue([
       { visitDate: "2026-03-01", _sum: { studentCount: 280, adultCount: 30 } },
     ]);
-    (mockPrisma.season.findFirst as jest.Mock).mockResolvedValue({ defaultDailyCapacity: 300 });
+    (mockPrisma.season.findMany as jest.Mock).mockResolvedValue([openSeason]);
 
     const result = await getAvailabilityCalendar("2026-03-01", "2026-03-01", 50);
 
@@ -50,7 +65,7 @@ describe("getAvailabilityCalendar", () => {
     (mockPrisma.booking.groupBy as jest.Mock).mockResolvedValue([
       { visitDate: "2026-03-01", _sum: { studentCount: 280, adultCount: 0 } },
     ]);
-    (mockPrisma.season.findFirst as jest.Mock).mockResolvedValue({ defaultDailyCapacity: 300 });
+    (mockPrisma.season.findMany as jest.Mock).mockResolvedValue([openSeason]);
 
     const result = await getAvailabilityCalendar("2026-03-01", "2026-03-01", 10, 30);
 
@@ -64,7 +79,7 @@ describe("getAvailabilityCalendar", () => {
       { date: "2026-03-01", capacityLimit: 300, isBlackout: true, note: "Staff training" },
     ]);
     (mockPrisma.booking.groupBy as jest.Mock).mockResolvedValue([]);
-    (mockPrisma.season.findFirst as jest.Mock).mockResolvedValue({ defaultDailyCapacity: 300 });
+    (mockPrisma.season.findMany as jest.Mock).mockResolvedValue([openSeason]);
 
     const result = await getAvailabilityCalendar("2026-03-01", "2026-03-01", 10);
 
@@ -79,7 +94,7 @@ describe("getAvailabilityCalendar", () => {
     (mockPrisma.booking.groupBy as jest.Mock).mockResolvedValue([
       { visitDate: "2026-03-01", _sum: { studentCount: 80, adultCount: 10 } },
     ]);
-    (mockPrisma.season.findFirst as jest.Mock).mockResolvedValue({ defaultDailyCapacity: 300 });
+    (mockPrisma.season.findMany as jest.Mock).mockResolvedValue([openSeason]);
 
     const result = await getAvailabilityCalendar("2026-03-01", "2026-03-01", 20);
 
@@ -91,7 +106,7 @@ describe("getAvailabilityCalendar", () => {
   it("uses default capacity 300 when no season or override exists", async () => {
     (mockPrisma.dailyCapacity.findMany as jest.Mock).mockResolvedValue([]);
     (mockPrisma.booking.groupBy as jest.Mock).mockResolvedValue([]);
-    (mockPrisma.season.findFirst as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.season.findMany as jest.Mock).mockResolvedValue([]);
 
     const result = await getAvailabilityCalendar("2026-03-01", "2026-03-01", 1);
 

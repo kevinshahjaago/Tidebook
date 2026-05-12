@@ -1,4 +1,4 @@
-import { addDays, parseISO, format, isAfter, isBefore } from "date-fns";
+import { addDays, parseISO, format, isAfter, isBefore, differenceInCalendarDays } from "date-fns";
 
 export function formatDate(date: Date): string {
   return format(date, "yyyy-MM-dd");
@@ -21,10 +21,7 @@ export function isDateAfter(dateStr: string, referenceStr: string): boolean {
 }
 
 export function daysBetween(from: string, to: string): number {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  return Math.floor(
-    (parseISO(to).getTime() - parseISO(from).getTime()) / msPerDay
-  );
+  return differenceInCalendarDays(parseISO(to), parseISO(from));
 }
 
 export function generateTimeSlots(
